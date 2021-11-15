@@ -4,7 +4,7 @@
 REDCAPP is a python-based open source software for parameterizing the temporal and spatial differentiation of surface effects and cold air pooling when downscaling reanalysis data in mountainous areas. REDCAPP can produce daily, high-resolution gridded fields of near-surface air temperature in mountains.
 Full desciption available in this publication: http://www.geosci-model-dev-discuss.net/gmd-2017-60/
 
-REDCAPP was originally written with Python 2 <https://github.com/geocryology/REDCAPP> . This version switch to Python 3.
+REDCAPP was originally written with Python 2:  <https://github.com/geocryology/REDCAPP> . This version switch to Python 3.
 
 
 # Why REDCAPP is Powerful 
