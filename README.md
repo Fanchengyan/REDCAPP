@@ -50,9 +50,9 @@ REDCAPP is wrotten by python (version 2.7 / 3.6 or higher) and public open. To r
 (4) Follow the instructions for "Installing your API key" on
     https://software.ecmwf.int/wiki/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch
 
-(5) Adapt the script below (settings and location) 
+(5)  Please accept the terms and conditions at <http://apps.ecmwf.int/datasets/licences/general>
 
-(6) Run the script
+(6) Run the script (redcapp_example.py is an example script)
 
 (7) Explore the results. Use a netcdf viewer to plot maps and time series.
     Panoply (https://www.giss.nasa.gov/tools/panoply) is a good one.
