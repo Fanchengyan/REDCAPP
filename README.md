@@ -29,7 +29,7 @@ You need to install required dependencies firstly. `conda` is recommended to ins
 conda install -c conda-forge netCDF4 pygrib numpy scipy -y
 ```
 
-Then, install REDCAPP to your python site-package:
+Then, install REDCAPP to your python site-package (This commend only for Python 3 version):
 
 ```bash
 python setup.py install
