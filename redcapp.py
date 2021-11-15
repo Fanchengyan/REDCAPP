@@ -108,9 +108,9 @@ class ERAgeneric(object):
     def download(self):
         #TODO test for file existence
         server = ECMWFDataServer()
-        print server.trace('=== ERA Interim: START ====')
+        print(server.trace('=== ERA Interim: START ===='))
         server.retrieve(self.getDictionary())
-        print server.trace('=== ERA Interim: STOP =====')
+        print(server.trace('=== ERA Interim: STOP ====='))
 
     def toNCDF(self):
         gribFile(self.file_grib).toNCDF(self.file_ncdf)
@@ -479,10 +479,10 @@ class eraData(object):
                                units = "seconds since 1970-1-1",
                                calendar='standard')
 
-        print "Time:      " + str(self.time_min) + " to " + str(self.time_max)
-        print "Latitude:  " + str(self.lat_min) + " to " + str(self.lat_max)
-        print "Longitude: " + str(self.lon_min) + " to " + str(self.lon_max)
-        print "Level:     " + str(self.lev_min) + " to " + str(self.lev_max)
+        print("Time:      " + str(self.time_min) + " to " + str(self.time_max))
+        print("Latitude:  " + str(self.lat_min) + " to " + str(self.lat_max))
+        print("Longitude: " + str(self.lon_min) + " to " + str(self.lon_max))
+        print("Level:     " + str(self.lev_min) + " to " + str(self.lev_max))
         ncf.close()
 
 
@@ -548,8 +548,8 @@ class eraData(object):
             sbeg = self.DateFile(file_list[ 0], get='beg')
             send = self.DateFile(file_list[-1], get='end')
             file_new = file_list[0][:-19] + 'm' + '_' + sbeg + '_' + send + '.nc'
-            print file_list
-            print file_new
+            print(file_list)
+            print(file_new)
             self.NCDFmerge(file_list, file_new)
 
 
@@ -663,8 +663,8 @@ class rawData(object):
         if len(flist) >= 1:
             return flist[0]
         else:
-            print("File " + nomenclature + " not found in directory " + 
-                  self.dir + ".")
+            print(("File " + nomenclature + " not found in directory " + 
+                  self.dir + "."))
     
     def plf_get(self, nomenclature = 'ecmwf_erai_pl_m*'):
         """finds the pressure level files in the directory 
@@ -1184,7 +1184,7 @@ class downscaling(object):
         print("\nConducting downscaling now, have a cup of coffee please\n")
 
         for ind_out, ind_time in enumerate(ind_time_vec):
-            print(out_time[ind_out])
+            print((out_time[ind_out]))
             pl_obs,dt = self.interpAll(variable,ind_time, out_xyz_sur, out_xyz_dem)
             sum_pl_obs += pl_obs
             sum_dt += dt
@@ -1245,7 +1245,7 @@ class downscaling(object):
         print("\nConducting downscaling now, have a cup of coffee please\n")
 
         for ind_out, ind_time in enumerate(ind_time_vec):
-            print(out_time[ind_out])
+            print((out_time[ind_out]))
             out_valu[:,ind_out,:] = self.interpAll(variable, ind_time,
                                                    out_xyz_sur, out_xyz_dem)
 
@@ -1429,10 +1429,10 @@ class topography(object):
         minlat = np.min(self.lat)
         maxlat = np.max(self.lat)
 
-        print 'Ranges:  West: %s,  East: %s, South: %s, North: %s '  %(minlon, maxlon, minlat, maxlat)
-        print 'Resolution: ' + str(self.resolution)
-        print 'Dem shape [Lat, Lon]: ' + str(self.shape)
-        print 'Dem size:' + str(self.size)
+        print('Ranges:  West: %s,  East: %s, South: %s, North: %s '  %(minlon, maxlon, minlat, maxlat))
+        print('Resolution: ' + str(self.resolution))
+        print('Dem shape [Lat, Lon]: ' + str(self.shape))
+        print('Dem size:' + str(self.size))
 
     def pixelLength(self, lat, L=1):
         """Return the cellsize for L step in meter. The function
@@ -1477,12 +1477,12 @@ class topography(object):
         validPer = [(size[0]-30)/size[0], (size[1]-30)/size[1]]
         
         if any([validPer[0] < threshold, validPer < threshold]):
-            print ('Input DEM (width in ' + 
+            print(('Input DEM (width in ' + 
                                str(int(size[1])) + ' km, breadth in ' + 
                                str(int(size[0])) + ' km) ' + 
                 'is too small to meaningfully ' +
                 'accommodate the 30 km neighbourhood. Only one value is used ' +
-                'as elevation range for the entire DEM')
+                'as elevation range for the entire DEM'))
             
             return True
         
@@ -1549,8 +1549,8 @@ class topography(object):
         """
         
         scale = 3**(L-2)
-        latIndex = range((scale-1)/2,len(self.lat),scale)
-        lonIndex = range((scale-1)/2,len(self.lon),scale)
+        latIndex = list(range((scale-1)/2,len(self.lat),scale))
+        lonIndex = list(range((scale-1)/2,len(self.lon),scale))
         f = RegularGridInterpolator((self.lat[latIndex][::-1],self.lon[lonIndex]),
                 coarseValue[::-1,:], method = 'linear',bounds_error = False)
 
@@ -1746,8 +1746,8 @@ class topography(object):
             shape = sdemL.shape
             Tf = initTf / (2**(L-1))
             #aggreate sdem for L step
-            latIndex = range(1, shape[0], 3)
-            lonIndex = range(1, shape[1], 3)
+            latIndex = list(range(1, shape[0], 3))
+            lonIndex = list(range(1, shape[1], 3))
             sdemL = convolve(sdemL, meanKernel)[latIndex, :]
             sdemL = sdemL[:, lonIndex]
 
@@ -1788,8 +1788,8 @@ class topography(object):
         shape = dem.shape
         meanKernel = np.full((scaleFactor,scaleFactor), 
                              1.0/(scaleFactor*scaleFactor))
-        latIndex = range((scaleFactor-1)/2, shape[0], scaleFactor)
-        lonIndex = range((scaleFactor-1)/2, shape[1], scaleFactor)
+        latIndex = list(range((scaleFactor-1)/2, shape[0], scaleFactor))
+        lonIndex = list(range((scaleFactor-1)/2, shape[1], scaleFactor))
         aggDem = convolve(dem, meanKernel)[latIndex, :]
         aggDem = aggDem[:, lonIndex]
 
@@ -2052,13 +2052,13 @@ class landSurCorrectionFac(object):
         RangeE     = nc_root.createVariable('eleRange','f4',('lat','lon'),zlib=True)
         Lscf       = nc_root.createVariable('lscf','f4',('lat','lon'), zlib=True)
         
-        longitudes.setncatts({'long_name': u"longitude"})
-        latitudes.setncatts({'long_name': u"latitude"})
+        longitudes.setncatts({'long_name': "longitude"})
+        latitudes.setncatts({'long_name': "latitude"})
         Mrvbf.setncatts({'long_name': 
                          "normalized multiresolution index of valley bottom flatness"})
-        Hypso.setncatts({'long_name': u"hyposmetric position"})
-        RangeE.setncatts({'long_name': u"elevation range in prescirbed neighbourhood"})
-        Lscf.setncatts({'long_name': u"Land surface correction factor"})
+        Hypso.setncatts({'long_name': "hyposmetric position"})
+        RangeE.setncatts({'long_name': "elevation range in prescirbed neighbourhood"})
+        Lscf.setncatts({'long_name': "Land surface correction factor"})
         
         #assign variables
         longitudes[:] = self.dem_ncdf.variables['lon'][:]
@@ -2190,8 +2190,8 @@ class redcappTemp(object):
         pl, dt = Downscaling.spatialMean(self.variable, self.daterange)
         
         #lscf
-        print "Temperature Done!"
-        print "Conducting terrain analysis..."
+        print("Temperature Done!")
+        print("Conducting terrain analysis...")
         LSCF = landSurCorrectionFac(self.dem, self.resolution)
         lscf = LSCF.spatialLSCF(topo_out)
         
@@ -2213,8 +2213,8 @@ class redcappTemp(object):
                                                          stations)
         
         #lscf
-        print "Temperature Done!"
-        print "Conducting terrain analysis..."
+        print("Temperature Done!")
+        print("Conducting terrain analysis...")
         LSCF = landSurCorrectionFac(self.dem, self.resolution)
         lscf = LSCF.stationLSCF(stations, topo_out)
         
