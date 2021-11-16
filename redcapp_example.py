@@ -95,7 +95,7 @@ spatTemp_out = dir_data / spatTemp_out
 statTemp_out = dir_data / statTemp_out
 
 # dem resolution
-resolution = 3.0/3600
+# resolution = 3.0/3600
 # %%
 # === DOWNLOAD =================================================================
 # rg = redcapp_get(date, area, elevation, dir_data, 5)

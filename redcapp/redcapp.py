@@ -40,8 +40,8 @@ import netCDF4 as nc
 import pygrib as pg
 import csv
 import re
+import xarray as xr
 import rioxarray
-
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter, generic_filter, convolve, minimum_filter, maximum_filter
 from math import radians, exp, floor
@@ -710,9 +710,10 @@ class DataManager(object):
             dm.raster2nc(dem_file, dem_out)
 
         """
-        ds = rioxarray.open_rasterio(raster_file)
+        da = rioxarray.open_rasterio(raster_file)
         name_map = {'x': 'lon', 'y': 'lat'}
-        ds = ds.rename(name_map)
+        da = da.rename(name_map)
+        ds = xr.Dataset({'elevation': da})
         if crs:
             ds.rio.write_crs(crs, inplace=True)
 
@@ -745,8 +746,8 @@ class DownScaling(object):
         self.geop = nc.Dataset(geop)
         self.sa = nc.Dataset(sa)
         self.pl = nc.Dataset(pl)
-        if not (dem is None):
-            self.dem = nc.Dataset(dem)
+        if dem is not None:
+            self.ds_dem = xr.open_dataset(dem)
 
     def demGrid(self, stations=None):
         """Return metadata of given stations or dem. 
@@ -775,9 +776,9 @@ class DownScaling(object):
             return siteLocation, lats, lons, shape, names
 
         # out_xyz based on dem
-        lons = self.dem.variables['lon'][:]
-        lats = self.dem.variables['lat'][:]
-        geop = self.dem.variables['elevation'][:]*self.g
+        lons = self.ds_dem['lon'].values
+        lats = self.ds_dem['lat'].values
+        geop = self.ds_dem['elevation'].values*self.g
         shape = geop.shape
 
         lons, lats = np.meshgrid(lons, lats)
@@ -1271,7 +1272,7 @@ class DownScaling(object):
 
         # temperature and coarse land-surface effects
         pl, dt = self.spatialMean(variable, daterange)
-        shape = self.dem.variables['elevation'].shape
+        shape = self.ds_dem['elevation'].shape
 
         # create nc file
         nc_root = nc.Dataset(file_out, 'w', format='NETCDF4_CLASSIC')
@@ -1289,8 +1290,8 @@ class DownScaling(object):
                                     'f4', ('lat', 'lon'), zlib=True)
 
         # assign variables
-        lons = self.dem.variables['lon'][:]
-        lats = self.dem.variables['lat'][:]
+        lons = self.ds_dem['lon'].values
+        lats = self.ds_dem['lat'].values
         longitudes[:] = lons
         latitudes[:] = lats
         Ta[:] = pl
@@ -1337,11 +1338,11 @@ class topography(object):
     """
 
     def __init__(self, demFile, demResolution):
-        self.dem = nc.Dataset(demFile, 'r')
+        self.ds_dem = xr.open_dataset(demFile)
         self.R = 6371000  # the mean radius (in meter) of Earth
         self.resolution = demResolution  # units = degree
-        self.lon = self.dem['lon'][:]
-        self.lat = self.dem['lat'][:]
+        self.lon = self.ds_dem['lon'].values
+        self.lat = self.ds_dem['lat'].values
         self.shape = [len(self.lat), len(self.lon)]
         self.size = len(self.lon)*len(self.lat)
 
@@ -1632,15 +1633,17 @@ class topography(object):
         """
 
         # first step
-        #ele = self.dem['elevation'][:]
-        F1 = self.flatness(self.dem['elevation'][:], out_xy=out_xy, Tf=initTf)
-        L1 = self.lowness(self.dem['elevation'][:], out_xy=out_xy, lowRadius=7)
+        #ele = self.ds_dem['elevation'][:]
+        F1 = self.flatness(
+            self.ds_dem['elevation'].values, out_xy=out_xy, Tf=initTf)
+        L1 = self.lowness(
+            self.ds_dem['elevation'].values, out_xy=out_xy, lowRadius=7)
         PVF1 = F1*L1
         VF1 = 1 - self.scale(PVF1, 0.3, 4)
         # second step
-        F2 = self.flatness(self.dem['elevation'][:],
+        F2 = self.flatness(self.ds_dem['elevation'].values,
                            out_xy=out_xy, Tf=initTf/2)
-        L2 = self.lowness(self.dem['elevation'][:],
+        L2 = self.lowness(self.ds_dem['elevation'].values,
                           out_xy=out_xy, lowRadius=13)
         PVF2 = F2*L2
         VF2 = 1 - self.scale(PVF2, 0.3, 4)
@@ -1665,7 +1668,7 @@ class topography(object):
         """
         mrvbf, cf = self.finestScale(initTf=initTf, out_xy=out_xy)
         # smoothed base resolution dem
-        sdemL = self.smoothDEM(self.dem['elevation'][:])
+        sdemL = self.smoothDEM(self.ds_dem['elevation'].values)
         meanKernel = np.full((3, 3), 1.0/(3*3))
         for L in range(3, 9):
             # print L
@@ -1750,7 +1753,7 @@ class topography(object):
         lonli = lonPosition - lowRadius  # left index
         lonri = lonPosition + lowRadius  # right index
         # nearest area with bound size
-        eleSubset = self.dem.variables['elevation'][latli:latui, lonli:lonri]
+        eleSubset = self.ds_dem['elevation'].values[latli:latui, lonli:lonri]
         return eleSubset
 
     def siteHypso(self, out_xy, bound=30):
@@ -1796,7 +1799,7 @@ class topography(object):
 
         yi = self.pixelLength(self.lat)[0]
         lowRadius = int((bound*1000/yi))
-        pctl = generic_filter(self.dem['elevation'][:],
+        pctl = generic_filter(self.ds_dem['elevation'].values,
                               self.__percentile, size=lowRadius)
         pctl = pctl/(float(lowRadius)**2)
         lowness = 1-pctl
@@ -1825,7 +1828,7 @@ class topography(object):
 
         yi = self.pixelLength(self.lat)[0]
         scaleFactor = int(np.ceil(500//yi) // 2 * 2 + 1)
-        aggDem = self.aggregation(self.dem['elevation'][:], scaleFactor)
+        aggDem = self.aggregation(self.ds_dem['elevation'].values, scaleFactor)
 
         # lowness
         lowRadius = 61  # bound*1000/500
@@ -1884,7 +1887,8 @@ class topography(object):
 
         else:
             lowRadius = bound*1000/(self.pixelLength(self.lat)[0])
-            dem = gaussian_filter(self.dem['elevation'][:], np.sqrt(4.5))
+            dem = gaussian_filter(
+                self.ds_dem['elevation'].values, np.sqrt(4.5))
             minEle = minimum_filter(dem, size=lowRadius)
             maxEle = maximum_filter(dem, size=lowRadius)
             rangeE = maxEle - minEle
@@ -1928,7 +1932,10 @@ class landSurCorrectionFac(object):
         self.beta = beta
         self.alpha = alpha
         self.resolution = demResolution
-        self.dem_ncdf = nc.Dataset(self.dem, 'r')
+
+        ds_dem = xr.open_dataset(dem)
+        self.lat = ds_dem['lat'].values
+        self.lon = ds_dem['lon'].values
 
     def scale(self, eleRange):
 
@@ -1982,8 +1989,8 @@ class landSurCorrectionFac(object):
         Lscf.setncatts({'long_name': "Land surface correction factor"})
 
         # assign variables
-        longitudes[:] = self.dem_ncdf.variables['lon'][:]
-        latitudes[:] = self.dem_ncdf.variables['lat'][:]
+        longitudes[:] = self.lon
+        latitudes[:] = self.lat
         Hypso[:] = hypso
         Mrvbf[:] = mrvbf
         RangeE[:] = eleR
@@ -2037,7 +2044,6 @@ class redcappTemp(object):
             used here
         daterange: the date range to be downscaled
         dem: DEM file in netcdf format, consiered as fine scale of topography
-        demResolution: resolution of input dem
 
     Returns:
         returns (1) spatalized mean air temperature in netcdf format, if input
@@ -2068,7 +2074,7 @@ class redcappTemp(object):
 
     """
 
-    def __init__(self, geop, sa, pl, variable, daterange, dem, demResolution,
+    def __init__(self, geop, sa, pl, variable, daterange, dem,
                  alpha=0.61, beta=1.56, gamma=465):
         self.geop = geop
         self.sa = sa
@@ -2076,11 +2082,16 @@ class redcappTemp(object):
         self.variable = variable
         self.daterange = daterange
         self.dem = dem
-        self.ds_dem = rioxarray.open_rasterio(dem)
-        self.resolution = demResolution
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
+
+        ds_dem = xr.open_dataset(dem)
+        tf = ds_dem['spatial_ref'].attrs['GeoTransform']
+
+        self.resolution = float(tf.split()[1])
+        self.lat = ds_dem['lat'].values
+        self.lon = ds_dem['lon'].values
 
     def edgeClip(self, values):
         """
@@ -2100,8 +2111,8 @@ class redcappTemp(object):
 
         values = values[upper:low, left:right]
 
-        lons = self.ds_dem['x'][left:right]
-        lats = self.ds_dem['y'][upper:low]
+        lons = self.lon[left:right]
+        lats = self.lat[upper:low]
 
         return values, lons, lats
 
