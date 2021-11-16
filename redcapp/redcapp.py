@@ -40,6 +40,7 @@ import netCDF4 as nc
 import pygrib as pg
 import csv
 import re
+import rioxarray
 
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter, generic_filter, convolve, minimum_filter, maximum_filter
@@ -525,8 +526,8 @@ class eraData(object):
         newseq = []
         splitsize = 1.0/size*len(seq)
         for i in range(size):
-            newseq.append(seq[int(round(i*splitsize))
-                          :int(round((i+1)*splitsize))])
+            newseq.append(seq[int(round(i*splitsize)):
+                              int(round((i+1)*splitsize))])
         return newseq
 
     def DateFile(self, filename, get='beg'):
@@ -639,16 +640,16 @@ class redcapp_get(object):
         return "Object for data download and conversion"
 
 
-class rawData(object):
+class DataManager(object):
     """
     Args:
         dir_data: directory containing all raw data and output data
 
     Example:
         dir_data = 'C:/users/bincao/Desktop/data'
-        dataImport = rawData(dir_data)
-        sa = dataImport.saf_get()#get sa file in the given directory
-        pl = dataImport.plf_get()#get pl file in the given directory
+        dm = DataManager(dir_data)
+        sa = dm.saf_get()#get sa file in the given directory
+        pl = dm.plf_get()#get pl file in the given directory
     """
 
     def __init__(self, dir_data):
@@ -682,98 +683,35 @@ class rawData(object):
         """
         return self.file_get(nomenclature)
 
-    def asciiDemHeader(self, demAsiccf):
-        """Returns header information of input DEM in ASCIIGRID format"""
-        header = []
-        with open(demAsiccf) as f:
-            reader = csv.reader(f)
-            i = 0
-            for row in reader:
-                i = i+1
-                if (i <= 5):
-                    header.append(row[0])
-            return header
+    def raster2nc(self, raster_file, nc_file):
+        """convert input raster to netcdf file
 
-    def asciiDemEle(self, demAsciif):
-        """
+        Parameters:
+            raster_file: str or pathlib.Path object
+                the path of raster that should be converted to nc file.
+                all formats that gdal readable are supported.More info:
+                https://gdal.org/drivers/raster/index.html
+            dem_out: str or pathlib.Path object
+                output rasterio in netcdf format
 
-        Args:
-           demAsciif: DEM in ASCIIGRID format and lat/lon WGS84 grid
-
-         Returns:
-             headerInfo: header information of input ascii file
-             ele: array-like elevation of input ascii file
-        """
-
-        # read elevation
-        return np.loadtxt(demAsciif, delimiter=' ', skiprows=5)
-
-    def ascii2ncdf(self, demAsciif, dem_out):
-        """convert input DEM in ASCIIGRID to netcdf file
-
-        Args:
-            demAsciif: DEM in ASCIIGRID format and lat/lon WGS84 grid. 
-                the header of ascii file should be same as the example data,
-                xllcorner is the lontitude in the left low point, while
-                yllcorner is the latitude in the left low point.
-            dem_out: output DEM in netcdf format
-
-        Returns a ASCIIGRID-based DEM in netcdf
+        Returns a raster in netcdf
 
         Example:
             dir_data = 'C:/users/bincao/Desktop/data'
-            demAsciif = 'DEM_testArea.asc'
+            dem_file = 'DEM_testArea.asc'
             dem_out  = 'C:/users/bincao/Desktop/data/DEM_fine-scale.nc'
 
-            dataImport =  dataImport = rawData(dir_data)
-            dataImport.ascii2ncdf(dem_file, dem_out)
+            dm = DataManager(dir_data)
+            dm.raster2nc(dem_file, dem_out)
 
         """
-
-        # meta information
-        header = self.asciiDemHeader(demAsciif)
-        ncol = int(re.findall(r'\d+', header[0])[0])
-        nrow = int(re.findall(r'\d+', header[1])[0])
-        xllcorner = float(re.findall(r'\d+\.\d+', header[2])[0])
-        yllcorner = float(re.findall(r'\d+\.\d+', header[3])[0])
-        cellsize = float(re.findall(r'\d+\.\d+', header[4])[0])
-
-        # get variables
-        ele = self.asciiDemEle(demAsciif)  # elevation
-        lats = np.linspace(yllcorner, yllcorner+cellsize*nrow,
-                           nrow, endpoint=True)  # latitude
-        lons = np.linspace(xllcorner, xllcorner+cellsize*ncol,
-                           ncol, endpoint=True)  # lontitude
-
-        # create nc file
-        nc_root = nc.Dataset(dem_out, 'w', format='NETCDF4_CLASSIC')
-
-        # create dimensions
-        nc_root.createDimension('lat', nrow)
-        nc_root.createDimension('lon', ncol)
-
-        # create variables
-        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
-        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
-        elevation = nc_root.createVariable('elevation',
-                                           'f4', ('lat', 'lon'), zlib=True)
-
-        # assign variables
-        longitudes[:] = lons
-        latitudes[:] = lats[::-1]
-        elevation[:] = ele
-
-        # attribute
-        nc_root.description = "high-resolution topography file"
-        #resolution = cellsize
-        longitudes.units = 'degree_east (decimal)'
-        latitudes.units = 'degree_north (decimal)'
-        elevation.units = 'm'
-
-        nc_root.close()
+        ds = rioxarray.open_rasterio(raster_file)
+        if path.exists(nc_file):
+            remove(nc_file)
+        ds.to_netcdf(nc_file)
 
 
-class downscaling(object):
+class DownScaling(object):
     """
     Return object for downscaling that has methods for interpolationg
     upper-air temperature and surface influences at surface level
@@ -788,7 +726,7 @@ class downscaling(object):
         sa   = 'alps_sa_79_15.nc'
         pl   = 'alps_pl_79_15.nc'
 
-        downscaling = downscaling(dem, geop, sa, pl)
+        downscaling = DownScaling(dem, geop, sa, pl)
 
     """
 
@@ -874,7 +812,7 @@ class downscaling(object):
             while geop is interpolated from coarse geopotential file
 
         Example:
-            downscaling = downscaling(dem, geop, sa, pl)
+            downscaling = DownScaling(dem, geop, sa, pl)
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_ori = downscaling.geoGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, out_xyz_dem[:,:2])
@@ -914,7 +852,7 @@ class downscaling(object):
             sa   = 'alps_sa_79_15.nc'
             pl   = 'alps_pl_79_15.nc'
 
-            downscaling = downscaling(dem, geop, sa, pl)
+            downscaling = DownScaling(dem, geop, sa, pl)
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
@@ -988,7 +926,7 @@ class downscaling(object):
                 The returned values are fomrated in [level, lat, lon]
 
         Examples:
-            downscaling = downscaling(dem, geop, sa, pl)
+            downscaling = DownScaling(dem, geop, sa, pl)
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
@@ -1039,7 +977,7 @@ class downscaling(object):
             dG:upper-air temperature at given sites
 
         Example: 
-            downscaling = downscaling(dem, geop, sa, pl)
+            downscaling = DownScaling(dem, geop, sa, pl)
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
@@ -1136,7 +1074,7 @@ class downscaling(object):
             geop = 'alps_geop.nc'
             sa   = 'alps_sa_79_15.nc'
 
-            downscaling = downscaling(dem, geop, sa, pl)
+            downscaling = DownScaling(dem, geop, sa, pl)
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
@@ -1194,13 +1132,13 @@ class downscaling(object):
             out_time: time series
 
         Example:
-            Downscaling = downscaling(geop, sa, pl, dem_ncdf)
+            downscaling = DownScaling(geop, sa, pl, dem_ncdf)
             stations=[{'name':'COV','lat': 46.41801198, 'lon': 9.821232448, 'ele': 3350.5},
                       {'name':'SAM','lat': 46.52639523, 'lon': 9.878944266, 'ele': 1756.2}]
-            out_xyz_dem, lats, lons, shape, names = Downscaling.demGrid(stations)
-            out_xyz_sur = Downscaling.surGrid(lats, lons, site)
+            out_xyz_dem, lats, lons, shape, names = downscaling.demGrid(stations)
+            out_xyz_sur = downscaling.surGrid(lats, lons, site)
 
-            pl, dt, out_time, names = Downscaling.stationTimeSeries(variable, 
+            pl, dt, out_time, names = downscaling.stationTimeSeries(variable, 
                                                                     daterange, 
                                                                     out_xyz_sur,
                                                                     out_xyz_dem)
@@ -2160,8 +2098,8 @@ class redcappTemp(object):
     def spatialTemp(self, topo_out):
         """Returns spatialized mean air temperature."""
         # upp-air temperature and coarse land-surface effects
-        Downscaling = downscaling(self.geop, self.sa, self.pl, self.dem)
-        pl, dt = Downscaling.spatialMean(self.variable, self.daterange)
+        downscaling = DownScaling(self.geop, self.sa, self.pl, self.dem)
+        pl, dt = downscaling.spatialMean(self.variable, self.daterange)
 
         # lscf
         print("Temperature Done!")
@@ -2180,9 +2118,9 @@ class redcappTemp(object):
         """Returns air temperature time series."""
 
         # upp-air temperature and coarse land-surface effects
-        Downscaling = downscaling(self.geop, self.sa, self.pl)
+        downscaling = DownScaling(self.geop, self.sa, self.pl)
 
-        pl, dt, time, names = Downscaling.stationTimeSeries(self.variable,
+        pl, dt, time, names = downscaling.stationTimeSeries(self.variable,
                                                             self.daterange,
                                                             stations)
 

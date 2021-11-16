@@ -18,7 +18,9 @@ setuptools.setup(
         'netCDF4',
         'setuptools',
         'numpy',
-        'scipy'
+        'scipy',
+        'rioxarray',
+        'xarray'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

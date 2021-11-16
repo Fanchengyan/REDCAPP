@@ -26,7 +26,7 @@ Additionally, the input data are not limited to ERA-Interim and could be extende
 You need to install required dependencies firstly. `conda` is recommended to install those dependencies with one command :
 
 ```bash
-conda install -c conda-forge netCDF4 pygrib numpy scipy -y
+conda install -c conda-forge netCDF4 pygrib numpy scipy rioxarray xarray -y
 ```
 
 Then, install REDCAPP to your python site-package (This commend only for Python 3 version):
@@ -43,21 +43,19 @@ REDCAPP is wrotten by python (version 2.7 / 3.6 or higher) and public open. To r
 - python2: <https://github.com/geocryology/REDCAPP>  
 - python3: <https://github.com/Fanchengyan/REDCAPP>
 
-(2) Make sure that the directory containing this file (redcapp_example.py) is contained in your PYTHONPATH.
+(2) Register to ECMWF (free) https://apps.ecmwf.int/registration/
 
-(3) Register to ECMWF (free) https://apps.ecmwf.int/registration/
-
-(4) Follow the instructions for "Installing your API key" on
+(3) Follow the instructions for "Installing your API key" on
     https://software.ecmwf.int/wiki/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch
 
-(5)  Please accept the terms and conditions at <http://apps.ecmwf.int/datasets/licences/general>
+(4)  Please accept the terms and conditions at <http://apps.ecmwf.int/datasets/licences/general>
 
-(6) Run the script (redcapp_example.py is an example script)
+(5) Run the script (redcapp_example.py is an example script)
 
-(7) Explore the results. Use a netcdf viewer to plot maps and time series.
+(6) Explore the results. Use a netcdf viewer to plot maps and time series.
     Panoply (https://www.giss.nasa.gov/tools/panoply) is a good one.
 
-(8) Customise the code and use it for your project.
+(7) Customise the code and use it for your project.
 
 
 
