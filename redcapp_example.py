@@ -123,7 +123,7 @@ dm.raster2nc(dem_ascii, dem_ncdf)
 # setting-up
 time_s = time()
 variable = 'Temperature'
-Redcapp = redcappTemp(geop, sa, pl, variable, date, dem_ncdf, resolution)
+Redcapp = redcappTemp(geop, sa, pl, variable, date, dem_ncdf)
 
 # SPATIALIZED MEAN AIR TEMPERATURE
 Redcapp.extractSpatialDataNCF(spatTopo_out, spatTemp_out)
