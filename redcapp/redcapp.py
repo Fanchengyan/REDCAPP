@@ -683,7 +683,7 @@ class DataManager(object):
         """
         return self.file_get(nomenclature)
 
-    def raster2nc(self, raster_file, nc_file):
+    def raster2nc(self, raster_file, nc_file, crs=None):
         """convert input raster to netcdf file
 
         Parameters:
@@ -693,6 +693,11 @@ class DataManager(object):
                 https://gdal.org/drivers/raster/index.html
             dem_out: str or pathlib.Path object
                 output rasterio in netcdf format
+            crs: int, dict, or str.
+                Anything accepted by rasterio.crs.CRS.from_user_input.
+                When there is no coordinate system in original raster,
+                you can set the coordinate system to nc file using this
+                parameter.
 
         Returns a raster in netcdf
 
@@ -706,6 +711,11 @@ class DataManager(object):
 
         """
         ds = rioxarray.open_rasterio(raster_file)
+        name_map = {'x': 'lon', 'y': 'lat'}
+        ds = ds.rename(name_map)
+        if crs:
+            ds.rio.write_crs(crs, inplace=True)
+
         if path.exists(nc_file):
             remove(nc_file)
         ds.to_netcdf(nc_file)
@@ -2066,7 +2076,7 @@ class redcappTemp(object):
         self.variable = variable
         self.daterange = daterange
         self.dem = dem
-        self.demncdf = nc.Dataset(dem, 'r')
+        self.ds_dem = rioxarray.open_rasterio(dem)
         self.resolution = demResolution
         self.alpha = alpha
         self.beta = beta
@@ -2090,8 +2100,8 @@ class redcappTemp(object):
 
         values = values[upper:low, left:right]
 
-        lons = self.demncdf.variables['lon'][left:right]
-        lats = self.demncdf.variables['lat'][upper:low]
+        lons = self.ds_dem['x'][left:right]
+        lats = self.ds_dem['y'][upper:low]
 
         return values, lons, lats
 

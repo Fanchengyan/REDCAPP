@@ -51,16 +51,16 @@
 import os
 from redcapp import redcapp_get, eraData, DataManager, redcappTemp
 from datetime import datetime
-from os import path
+from pathlib import Path
 from time import time
 import numpy as np
 # directory containing all raw data and output data
-dir_data = '/media/fanchy/data/GeoData/temp/data'
+dir_data = Path('/media/fanchy/data/GeoData/temp/data')
 
 # input Digital ELevation Model in ASCIIGRID format and lat/lon WGS84 grid,
 # must be (a) in directory indicated above, (b) situated within area indicated
 # below, and (c) encompass the station locations given below.
-dem_ascii = 'DEM.asc'
+dem_in = 'DEM.asc'
 
 # output file names
 spatTopo_out = 'spatTopo.nc'  # modeled spatialized geomorphometric factors
@@ -87,12 +87,12 @@ stations = [{'name': 'COV', 'lat': 46.41801198, 'lon': 9.821232448, 'ele': 3350.
             {'name': 'SAM', 'lat': 46.52639523, 'lon': 9.878944266, 'ele': 1756.2}]
 
 # make full file names
-dem_ascii = path.join(dir_data, dem_ascii)
-dem_ncdf = path.join(dir_data, dem_ncdf)
-spatTopo_out = path.join(dir_data, spatTopo_out)
-statTopo_out = path.join(dir_data, statTopo_out)
-spatTemp_out = path.join(dir_data, spatTemp_out)
-statTemp_out = path.join(dir_data, statTemp_out)
+dem_ascii = dir_data / dem_in
+dem_ncdf = dir_data / dem_ncdf
+spatTopo_out = dir_data / spatTopo_out
+statTopo_out = dir_data / statTopo_out
+spatTemp_out = dir_data / spatTemp_out
+statTemp_out = dir_data / statTemp_out
 
 # dem resolution
 resolution = 3.0/3600
@@ -107,17 +107,17 @@ resolution = 3.0/3600
 
 # %%
 # ==== IMPORT REANALYSIS =======================================================
-dataImport = DataManager(dir_data)
-sa = dataImport.saf_get()    # 2-meter air temperature
-pl = dataImport.plf_get()    # pressure level air temperature
-geop = dataImport.geopf_get()  # geopotential file
+dm = DataManager(dir_data)
+sa = dm.saf_get()    # 2-meter air temperature
+pl = dm.plf_get()    # pressure level air temperature
+geop = dm.geopf_get()  # geopotential file
 
 # %%
 # ==== DEM CONVERSION ==========================================================
 # convert ASCII DEM to netcdf format.
 if os.path.exists(dem_ncdf):
     os.remove(dem_ncdf)
-dataImport.ascii2ncdf(dem_ascii, dem_ncdf)
+dm.raster2nc(dem_ascii, dem_ncdf)
 
 # ==== REDCAPP TEMPERATURE =====================================================
 # setting-up
