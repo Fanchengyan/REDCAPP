@@ -20,7 +20,8 @@ setuptools.setup(
         'numpy',
         'scipy',
         'rioxarray',
-        'xarray'
+        'xarray',
+        'ecmwf-api-client'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

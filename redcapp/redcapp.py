@@ -6,6 +6,7 @@
 #
 # Copyright 2013-2017 Stephan Gruber
 #           2015-2017 Bin Cao
+#           2022 Fan Chengyan
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -25,7 +26,8 @@
 #
 # Code for ERA-Interim interaction written by Stephan Gruber, with additions and
 # testing by Bin Cao. Terrain analysis, interpolation, and LSCF prediction
-# written by Bin Cao with input from Stephan Gruber.
+# written by Bin Cao with input from Stephan Gruber. Python3 and more 
+# format of DEM supporting written by Fan Chengyan.
 #
 # === NOTES ====================================================================
 #
@@ -48,8 +50,7 @@ from math import radians, exp, floor
 from bisect import bisect_left
 from datetime import datetime, timedelta
 from os import path, remove
-
-import glob as gl
+from pathlib import Path
 
 
 class ERAgeneric(object):
@@ -109,9 +110,7 @@ class ERAgeneric(object):
     def download(self):
         # TODO test for file existence
         server = ECMWFDataServer()
-        print(server.trace('=== ERA Interim: START ===='))
         server.retrieve(self.getDictionary())
-        print(server.trace('=== ERA Interim: STOP ====='))
 
     def toNCDF(self):
         gribFile(self.file_grib).toNCDF(self.file_ncdf)
@@ -532,22 +531,22 @@ class eraData(object):
 
     def DateFile(self, filename, get='beg'):
         if get == 'beg':
-            res = filename[-19:-13]
+            res = Path(filename).name[-19:-13]
         if get == 'end':
-            res = filename[-9: -3]
+            res = Path(filename).name[-9: -3]
         return res
 
     def NCDFmergeWildcard(self, files, n_to_combine):
         '''Merge multiple netCDF files with identical structure but differing
         times together into one netCDF file'''
         # get directory list and split
-        all_list = self.split_seq(sorted(gl.glob(files)), n_to_combine)
+        all_list = self.split_seq(files, n_to_combine)
 
         for file_list in all_list:
             sbeg = self.DateFile(file_list[0], get='beg')
             send = self.DateFile(file_list[-1], get='end')
-            file_new = file_list[0][:-19] + 'm' + \
-                '_' + sbeg + '_' + send + '.nc'
+            path = Path(file_list[0])
+            file_new = path.parent / f"{path.name[:-19]}m_sbeg_send.nc"
             print(file_list)
             print(file_new)
             self.NCDFmerge(file_list, file_new)
@@ -653,17 +652,16 @@ class DataManager(object):
     """
 
     def __init__(self, dir_data):
-        self.dir = dir_data
+        self.dir = Path(dir_data)
 
     def file_get(self, nomenclature):
         """file check"""
 
-        flist = gl.glob(path.join(self.dir, nomenclature))
+        flist = list(self.dir.glob(nomenclature))
         if len(flist) >= 1:
             return flist[0]
         else:
-            print(("File " + nomenclature + " not found in directory " +
-                  self.dir + "."))
+            print((f"File {nomenclature} not found in directory {self.dir}"))
 
     def plf_get(self, nomenclature='ecmwf_erai_pl_m*'):
         """finds the pressure level files in the directory 
@@ -683,7 +681,7 @@ class DataManager(object):
         """
         return self.file_get(nomenclature)
 
-    def raster2nc(self, raster_file, nc_file, crs=None):
+    def raster2nc(self, raster_file, nc_file, crs='WGS84'):
         """convert input raster to netcdf file
 
         Parameters:
@@ -697,7 +695,7 @@ class DataManager(object):
                 Anything accepted by rasterio.crs.CRS.from_user_input.
                 When there is no coordinate system in original raster,
                 you can set the coordinate system to nc file using this
-                parameter.
+                parameter. Default is `WGS84`
 
         Returns a raster in netcdf
 
@@ -778,7 +776,7 @@ class DownScaling(object):
         # out_xyz based on dem
         lons = self.ds_dem['lon'].values
         lats = self.ds_dem['lat'].values
-        geop = self.ds_dem['elevation'].values*self.g
+        geop = self.ds_dem['elevation'][0].values*self.g
         shape = geop.shape
 
         lons, lats = np.meshgrid(lons, lats)
@@ -1635,15 +1633,15 @@ class topography(object):
         # first step
         #ele = self.ds_dem['elevation'][:]
         F1 = self.flatness(
-            self.ds_dem['elevation'].values, out_xy=out_xy, Tf=initTf)
+            self.ds_dem['elevation'][0].values, out_xy=out_xy, Tf=initTf)
         L1 = self.lowness(
-            self.ds_dem['elevation'].values, out_xy=out_xy, lowRadius=7)
+            self.ds_dem['elevation'][0].values, out_xy=out_xy, lowRadius=7)
         PVF1 = F1*L1
         VF1 = 1 - self.scale(PVF1, 0.3, 4)
         # second step
-        F2 = self.flatness(self.ds_dem['elevation'].values,
+        F2 = self.flatness(self.ds_dem['elevation'][0].values,
                            out_xy=out_xy, Tf=initTf/2)
-        L2 = self.lowness(self.ds_dem['elevation'].values,
+        L2 = self.lowness(self.ds_dem['elevation'][0].values,
                           out_xy=out_xy, lowRadius=13)
         PVF2 = F2*L2
         VF2 = 1 - self.scale(PVF2, 0.3, 4)
@@ -1668,7 +1666,7 @@ class topography(object):
         """
         mrvbf, cf = self.finestScale(initTf=initTf, out_xy=out_xy)
         # smoothed base resolution dem
-        sdemL = self.smoothDEM(self.ds_dem['elevation'].values)
+        sdemL = self.smoothDEM(self.ds_dem['elevation'][0].values)
         meanKernel = np.full((3, 3), 1.0/(3*3))
         for L in range(3, 9):
             # print L
@@ -1753,7 +1751,7 @@ class topography(object):
         lonli = lonPosition - lowRadius  # left index
         lonri = lonPosition + lowRadius  # right index
         # nearest area with bound size
-        eleSubset = self.ds_dem['elevation'].values[latli:latui, lonli:lonri]
+        eleSubset = self.ds_dem['elevation'][0].values[latli:latui, lonli:lonri]
         return eleSubset
 
     def siteHypso(self, out_xy, bound=30):
@@ -1799,7 +1797,7 @@ class topography(object):
 
         yi = self.pixelLength(self.lat)[0]
         lowRadius = int((bound*1000/yi))
-        pctl = generic_filter(self.ds_dem['elevation'].values,
+        pctl = generic_filter(self.ds_dem['elevation'][0].values,
                               self.__percentile, size=lowRadius)
         pctl = pctl/(float(lowRadius)**2)
         lowness = 1-pctl
@@ -1828,7 +1826,7 @@ class topography(object):
 
         yi = self.pixelLength(self.lat)[0]
         scaleFactor = int(np.ceil(500//yi) // 2 * 2 + 1)
-        aggDem = self.aggregation(self.ds_dem['elevation'].values, scaleFactor)
+        aggDem = self.aggregation(self.ds_dem['elevation'][0].values, scaleFactor)
 
         # lowness
         lowRadius = 61  # bound*1000/500
@@ -1888,7 +1886,7 @@ class topography(object):
         else:
             lowRadius = bound*1000/(self.pixelLength(self.lat)[0])
             dem = gaussian_filter(
-                self.ds_dem['elevation'].values, np.sqrt(4.5))
+                self.ds_dem['elevation'][0].values, np.sqrt(4.5))
             minEle = minimum_filter(dem, size=lowRadius)
             maxEle = maximum_filter(dem, size=lowRadius)
             rangeE = maxEle - minEle
@@ -2141,9 +2139,8 @@ class redcappTemp(object):
         # upp-air temperature and coarse land-surface effects
         downscaling = DownScaling(self.geop, self.sa, self.pl)
 
-        pl, dt, time, names = downscaling.stationTimeSeries(self.variable,
-                                                            self.daterange,
-                                                            stations)
+        pl, dt, time, names = downscaling.stationTimeSeries(
+            self.variable, self.daterange, stations)
 
         # lscf
         print("Temperature Done!")

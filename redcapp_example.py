@@ -48,19 +48,18 @@
 #
 # ==============================================================================
 # %%
-import os
 from redcapp import redcapp_get, eraData, DataManager, redcappTemp
 from datetime import datetime
 from pathlib import Path
 from time import time
 import numpy as np
 # directory containing all raw data and output data
-dir_data = Path('/media/fanchy/data/GeoData/temp/data')
+dir_data = Path('/media/fanchy/data/GeoData/QTP/temperatures/redcapp/temp')
 
 # input Digital ELevation Model in ASCIIGRID format and lat/lon WGS84 grid,
 # must be (a) in directory indicated above, (b) situated within area indicated
 # below, and (c) encompass the station locations given below.
-dem_in = 'DEM.asc'
+dem_in = 'DEM.nc'
 
 # output file names
 spatTopo_out = 'spatTopo.nc'  # modeled spatialized geomorphometric factors
@@ -94,16 +93,15 @@ statTopo_out = dir_data / statTopo_out
 spatTemp_out = dir_data / spatTemp_out
 statTemp_out = dir_data / statTemp_out
 
-# dem resolution
-# resolution = 3.0/3600
+
 # %%
 # === DOWNLOAD =================================================================
-# rg = redcapp_get(date, area, elevation, dir_data, 5)
-# rg.retrieve()
+rg = redcapp_get(date, area, elevation, dir_data, 5)
+rg.retrieve()
 
-# eraDownload = eraData()
-# eraDownload.NCDFmergeWildcard(path.join(dir_data, 'ecmwf_erai_sa_*'), 1)
-# eraDownload.NCDFmergeWildcard(path.join(dir_data, 'ecmwf_erai_pl_*'), 1)
+eraDownload = eraData()
+eraDownload.NCDFmergeWildcard(list(dir_data.glob('ecmwf_erai_sa_*')), 1)
+eraDownload.NCDFmergeWildcard(list(dir_data.glob('ecmwf_erai_pl_*')), 1)
 
 # %%
 # ==== IMPORT REANALYSIS =======================================================
@@ -114,9 +112,7 @@ geop = dm.geopf_get()  # geopotential file
 
 # %%
 # ==== DEM CONVERSION ==========================================================
-# convert ASCII DEM to netcdf format.
-if os.path.exists(dem_ncdf):
-    os.remove(dem_ncdf)
+# convert DEM to netcdf format.
 dm.raster2nc(dem_ascii, dem_ncdf)
 
 # ==== REDCAPP TEMPERATURE =====================================================

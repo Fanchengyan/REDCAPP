@@ -29,6 +29,12 @@ You need to install required dependencies firstly. `conda` is recommended to ins
 conda install -c conda-forge netCDF4 pygrib numpy scipy rioxarray xarray -y
 ```
 
+Install `ecmwfapi` using pip:
+
+```bash
+pip install ecmwf-api-client
+```
+
 Then, install REDCAPP to your python site-package (This commend only for Python 3 version):
 
 ```bash
