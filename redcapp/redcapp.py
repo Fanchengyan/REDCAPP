@@ -26,7 +26,7 @@
 #
 # Code for ERA-Interim interaction written by Stephan Gruber, with additions and
 # testing by Bin Cao. Terrain analysis, interpolation, and LSCF prediction
-# written by Bin Cao with input from Stephan Gruber. Python3 and more 
+# written by Bin Cao with input from Stephan Gruber. Python3 and more
 # format of DEM supporting written by Fan Chengyan.
 #
 # === NOTES ====================================================================
@@ -41,7 +41,6 @@ from ecmwfapi import ECMWFDataServer
 import netCDF4 as nc
 import pygrib as pg
 import csv
-import re
 import xarray as xr
 import rioxarray
 from scipy.interpolate import RegularGridInterpolator
@@ -1826,7 +1825,8 @@ class topography(object):
 
         yi = self.pixelLength(self.lat)[0]
         scaleFactor = int(np.ceil(500//yi) // 2 * 2 + 1)
-        aggDem = self.aggregation(self.ds_dem['elevation'][0].values, scaleFactor)
+        aggDem = self.aggregation(
+            self.ds_dem['elevation'][0].values, scaleFactor)
 
         # lowness
         lowRadius = 61  # bound*1000/500
