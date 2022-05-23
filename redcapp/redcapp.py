@@ -545,7 +545,7 @@ class eraData(object):
             sbeg = self.DateFile(file_list[0], get='beg')
             send = self.DateFile(file_list[-1], get='end')
             path = Path(file_list[0])
-            file_new = path.parent / f"{path.name[:-19]}m_sbeg_send.nc"
+            file_new = path.parent / f"{path.name[:-19]}m_{sbeg}_{send}.nc"
             print(file_list)
             print(file_new)
             self.NCDFmerge(file_list, file_new)
@@ -2175,6 +2175,7 @@ class redcappTemp(object):
                 row.insert(0, time[n])
                 writer.writerow(row)
 
+
 def raster2nc(raster_file, nc_file, crs='WGS84'):
     """convert input raster to netcdf file
 
@@ -2215,11 +2216,11 @@ def raster2nc(raster_file, nc_file, crs='WGS84'):
     ds.close()
 
 
-def get_area_from_DEM(dem_file,buffer=0.7):
+def get_area_from_DEM(dem_file, buffer=0.7):
     da = rioxarray.open_rasterio(dem_file)
     area = {'north': float(da.y.max()) + buffer,
             'south': float(da.y.min()) - buffer,
             'west': float(da.x.min()) - buffer,
-            'east': float(da.x.max()) + buffer} 
+            'east': float(da.x.max()) + buffer}
     da.close()
     return area
