@@ -680,44 +680,6 @@ class DataManager(object):
         """
         return self.file_get(nomenclature)
 
-    def raster2nc(self, raster_file, nc_file, crs='WGS84'):
-        """convert input raster to netcdf file
-
-        Parameters:
-            raster_file: str or pathlib.Path object
-                the path of raster that should be converted to nc file.
-                all formats that gdal readable are supported.More info:
-                https://gdal.org/drivers/raster/index.html
-            dem_out: str or pathlib.Path object
-                output rasterio in netcdf format
-            crs: int, dict, or str.
-                Anything accepted by rasterio.crs.CRS.from_user_input.
-                When there is no coordinate system in original raster,
-                you can set the coordinate system to nc file using this
-                parameter. Default is `WGS84`
-
-        Returns a raster in netcdf
-
-        Example:
-            dir_data = 'C:/users/bincao/Desktop/data'
-            dem_file = 'DEM_testArea.asc'
-            dem_out  = 'C:/users/bincao/Desktop/data/DEM_fine-scale.nc'
-
-            dm = DataManager(dir_data)
-            dm.raster2nc(dem_file, dem_out)
-
-        """
-        da = rioxarray.open_rasterio(raster_file)
-        name_map = {'x': 'lon', 'y': 'lat'}
-        da = da.rename(name_map)
-        ds = xr.Dataset({'elevation': da})
-        if crs:
-            ds.rio.write_crs(crs, inplace=True)
-
-        if path.exists(nc_file):
-            remove(nc_file)
-        ds.to_netcdf(nc_file)
-
 
 class DownScaling(object):
     """
@@ -2212,3 +2174,52 @@ class redcappTemp(object):
                 row = ['%.3f' % elem for elem in valu[n]]
                 row.insert(0, time[n])
                 writer.writerow(row)
+
+def raster2nc(raster_file, nc_file, crs='WGS84'):
+    """convert input raster to netcdf file
+
+    Parameters:
+        raster_file: str or pathlib.Path object
+            the path of raster that should be converted to nc file.
+            all formats that gdal readable are supported.More info:
+            https://gdal.org/drivers/raster/index.html
+        dem_out: str or pathlib.Path object
+            output rasterio in netcdf format
+        crs: int, dict, or str.
+            Anything accepted by rasterio.crs.CRS.from_user_input.
+            When there is no coordinate system in original raster,
+            you can set the coordinate system to nc file using this
+            parameter. Default is `WGS84`
+
+    Returns a raster in netcdf
+
+    Example:
+        dir_data = 'C:/users/bincao/Desktop/data'
+        dem_file = 'DEM_testArea.asc'
+        dem_out  = 'C:/users/bincao/Desktop/data/DEM_fine-scale.nc'
+
+        raster2nc(dem_file, dem_out)
+
+    """
+    da = rioxarray.open_rasterio(raster_file)
+    name_map = {'x': 'lon', 'y': 'lat'}
+    da = da.rename(name_map)
+    ds = xr.Dataset({'elevation': da})
+    if crs:
+        ds.rio.write_crs(crs, inplace=True)
+
+    if path.exists(nc_file):
+        remove(nc_file)
+    ds.to_netcdf(nc_file)
+    da.close()
+    ds.close()
+
+
+def get_area_from_DEM(dem_file,buffer=0.7):
+    da = rioxarray.open_rasterio(dem_file)
+    area = {'north': float(da.y.max()) + buffer,
+            'south': float(da.y.min()) - buffer,
+            'west': float(da.x.min()) - buffer,
+            'east': float(da.x.max()) + buffer} 
+    da.close()
+    return area

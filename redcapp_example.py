@@ -55,18 +55,30 @@ from time import time
 import numpy as np
 # directory containing all raw data and output data
 dir_data = Path('/media/fanchy/data/GeoData/QTP/temperatures/redcapp/temp')
-
-# input Digital ELevation Model in ASCIIGRID format and lat/lon WGS84 grid,
+# input Digital ELevation Model in any format supported by gdal with lat/lon WGS84,
 # must be (a) in directory indicated above, (b) situated within area indicated
 # below, and (c) encompass the station locations given below.
-dem_in = 'DEM.nc'
 
-# output file names
-spatTopo_out = 'spatTopo.nc'  # modeled spatialized geomorphometric factors
-statTopo_out = 'statTopo.csv'  # modeled spatation geomorphometric factors
-spatTemp_out = 'spatialT.nc'  # spatialised mean air temperature
-statTemp_out = 'stationT.csv'  # station timeseries air temperature
-dem_ncdf = 'DEM.nc'
+# input file : DEM file
+dem_raw = dir_data / 'DEM.asc'
+
+# output files
+dem_ncdf = dir_data / 'DEM.nc'
+
+# modeled spatialized geomorphometric factors file
+spatTopo_out = dir_data / 'spatTopo.nc' 
+
+# modeled spatation geomorphometric factors file
+statTopo_out = dir_data / 'statTopo.csv'
+
+# spatialised mean air temperature file
+spatTemp_out = dir_data / 'spatialT.nc'  
+
+# station timeseries air temperature file
+statTemp_out = dir_data / 'stationT.csv'  
+
+
+
 
 #location: alps
 date = {'beg': datetime(2015, 12, 1, 00, 00),
@@ -84,15 +96,6 @@ elevation = {'min': 0,
 # ['name':'siteName','lat':latNumber, 'lon':lonNumber, 'ele':eleNumber]
 stations = [{'name': 'COV', 'lat': 46.41801198, 'lon': 9.821232448, 'ele': 3350.5},
             {'name': 'SAM', 'lat': 46.52639523, 'lon': 9.878944266, 'ele': 1756.2}]
-
-# make full file names
-dem_ascii = dir_data / dem_in
-dem_ncdf = dir_data / dem_ncdf
-spatTopo_out = dir_data / spatTopo_out
-statTopo_out = dir_data / statTopo_out
-spatTemp_out = dir_data / spatTemp_out
-statTemp_out = dir_data / statTemp_out
-
 
 # %%
 # === DOWNLOAD =================================================================
@@ -113,7 +116,7 @@ geop = dm.geopf_get()  # geopotential file
 # %%
 # ==== DEM CONVERSION ==========================================================
 # convert DEM to netcdf format.
-dm.raster2nc(dem_ascii, dem_ncdf)
+dm.raster2nc(dem_raw, dem_ncdf)
 
 # ==== REDCAPP TEMPERATURE =====================================================
 # setting-up
