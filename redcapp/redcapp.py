@@ -638,6 +638,13 @@ class redcapp_get(object):
 
         # topography
         top = ERAto(self.area, self.directory)
+        if not overwrite:
+            ncfile = Path(top.getDictionary()[
+                            'target']).with_suffix('.nc')
+            if ncfile.is_file():
+                print(f'{ncfile} has been downloaded. Skipping...')
+                return None
+            
         top.download()
         top.toNCDF()
 
