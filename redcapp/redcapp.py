@@ -546,8 +546,8 @@ class eraData(object):
             send = self.DateFile(file_list[-1], get='end')
             path = Path(file_list[0])
             file_new = path.parent / f"{path.name[:-19]}m_{sbeg}_{send}.nc"
-            print(file_list)
-            print(file_new)
+            print(f'Files to be merged:\n {file_list}')
+            print(f'Merged file is : \n{file_new}')
             self.NCDFmerge(file_list, file_new)
 
 
@@ -599,7 +599,7 @@ class redcapp_get(object):
         return self.nc_files
         # TODO: add methods to get file names with * in them
 
-    def retrieve(self):
+    def retrieve(self, overwrite=False):
         # define variables
         var_pl = ['airt', 'geop']
         var_sa = ['airt2']
@@ -626,6 +626,13 @@ class redcapp_get(object):
 
             # download from ECMWF server convert to netCDF
             for era in self.ERAli:
+                # skip when file has been downlaoded
+                if not overwrite:
+                    ncfile = Path(era.getDictionary()[
+                                  'target']).with_suffix('.nc')
+                    if ncfile.is_file():
+                        print(f'{ncfile} has been downloaded. Skipping...')
+                        continue
                 era.download()
                 era.toNCDF()
 
