@@ -640,11 +640,11 @@ class redcapp_get(object):
         top = ERAto(self.area, self.directory)
         if not overwrite:
             ncfile = Path(top.getDictionary()[
-                            'target']).with_suffix('.nc')
+                'target']).with_suffix('.nc')
             if ncfile.is_file():
                 print(f'{ncfile} has been downloaded. Skipping...')
                 return None
-            
+
         top.download()
         top.toNCDF()
 
@@ -720,7 +720,10 @@ class DownScaling(object):
         self.sa = nc.Dataset(sa)
         self.pl = nc.Dataset(pl)
         if dem is not None:
-            self.ds_dem = xr.open_dataset(dem)
+            ds_dem = xr.open_dataset(dem)
+            self.lons = ds_dem['lon'].values
+            self.lats = ds_dem['lat'].values
+            self.ele = ds_dem['elevation'][0].values
 
     def demGrid(self, stations=None):
         """Return metadata of given stations or dem. 
@@ -749,9 +752,9 @@ class DownScaling(object):
             return siteLocation, lats, lons, shape, names
 
         # out_xyz based on dem
-        lons = self.ds_dem['lon'].values
-        lats = self.ds_dem['lat'].values
-        geop = self.ds_dem['elevation'][0].values*self.g
+        lons = self.lons
+        lats = self.lats
+        geop = self.ele*self.g
         shape = geop.shape
 
         lons, lats = np.meshgrid(lons, lats)
@@ -805,7 +808,9 @@ class DownScaling(object):
         longitude = self.geop['lon'][:]
         latitude = self.geop['lat'][:]
         in_v = self.geop['Geopotential'][0, 0, :, :]  # geopotential
-        fz = RegularGridInterpolator((latitude, longitude), in_v, 'linear')
+        fz = RegularGridInterpolator(
+            (latitude, longitude), in_v, 'linear',
+            bounds_error=False, fill_value=None)
         out_xy = np.array([lats, lons]).T
 
         if not (stations is None):
@@ -851,7 +856,9 @@ class DownScaling(object):
         lat = self.sa.variables['lat'][:]
         lon = self.sa.variables['lon'][:]
 
-        f_sa = RegularGridInterpolator((lat, lon), in_v, 'linear')
+        f_sa = RegularGridInterpolator(
+            (lat, lon), in_v, 'linear',
+            bounds_error=False, fill_value=None)
         t_sa = f_sa(out_xyz_sur[:, :2])
 
         return t_sa
@@ -934,10 +941,12 @@ class DownScaling(object):
 
         # temperatue and elevation interpolation 2d
         for i in range(shape[0]):
-            ft = RegularGridInterpolator((gridLat, gridLon),
-                                         gridT[i, :, :], 'linear')
-            fz = RegularGridInterpolator((gridLat, gridLon),
-                                         gridZ[i, :, :], 'linear')
+            ft = RegularGridInterpolator(
+                (gridLat, gridLon), gridT[i, :, :], 'linear',
+                bounds_error=False, fill_value=None)
+            fz = RegularGridInterpolator(
+                (gridLat, gridLon), gridZ[i, :, :], 'linear',
+                bounds_error=False, fill_value=None)
             t_interp[i, :] = ft(out_xyz[:, :2])  # temperature
             z_interp[i, :] = fz(out_xyz[:, :2])  # elevation
 
@@ -1036,15 +1045,13 @@ class DownScaling(object):
 
         return pl_obs, dt
 
-    def spatialMean(self, variable, daterange):
+    def spatial_pl_dt(self, variable, daterange, types='mean'):
         """Return the MEAN upper-air temperature and 
         land surface influence during given date range and at given  area
 
         Args:
             variable: Climated variable to interpolate
             daterange: Date range to interpolate
-            out_xyz_sur: Surface level sites to interpolate 
-            out_xyz_obs: Topography sites to interpolate
 
         Returns:
             pl: Interpolated MEAN free-atmosphere during given date range and
@@ -1062,8 +1069,7 @@ class DownScaling(object):
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
-            pl,dt = downscaling.spatialMean(variable, daterange, 
-                                            out_xyz_sur, out_xyz_dem, shape)
+            pl,dt = downscaling.spatial_pl_dt(variable, daterange, types)
 
         """
 
@@ -1081,25 +1087,42 @@ class DownScaling(object):
         sum_pl_obs = 0
         sum_dt = 0
 
-        out_xyz_dem, lats, lons, shape = self.demGrid()
+        # Surface level sites to interpolate
+        out_xyz_dem, lats, lons, shape = self.demGrid() 
+        # Topography sites to interpolate
         out_xyz_sur = self.surGrid(lats, lons, None)
 
         print("\nConducting downscaling now, have a cup of coffee please\n")
 
-        for ind_out, ind_time in enumerate(ind_time_vec):
-            print((out_time[ind_out]))
-            pl_obs, dt = self.interpAll(
-                variable, ind_time, out_xyz_sur, out_xyz_dem)
-            sum_pl_obs += pl_obs
-            sum_dt += dt
+        if types == 'mean':
+            for ind_out, ind_time in enumerate(ind_time_vec):
+                print((out_time[ind_out]))
+                pl_obs, dt = self.interpAll(
+                    variable, ind_time, out_xyz_sur, out_xyz_dem)
+                sum_pl_obs += pl_obs
+                sum_dt += dt
 
-        dt = sum_dt/out_time.size
-        pl = sum_pl_obs/out_time.size
+            dt = sum_dt/out_time.size
+            pl = sum_pl_obs/out_time.size
 
-        dt = dt.reshape(shape)
-        pl = pl.reshape(shape)
+            dt = dt.reshape(shape)
+            pl = pl.reshape(shape)
+        elif types == 'ts':
+            dt = []
+            pl = []
+            for ind_out, ind_time in enumerate(ind_time_vec):
+                print((out_time[ind_out]))
+                pl_obs, dt_ = self.interpAll(
+                    variable, ind_time, out_xyz_sur, out_xyz_dem)
+                dt.append(dt_.reshape(shape))
+                pl.append(pl_obs.reshape(shape))
+            dt = np.array(dt)
+            pl = np.array(pl)
+            
+        else:
+            raise ValueError('types must be one of ["mean","ts"]')
 
-        return pl, dt
+        return pl, dt, out_time
 
     def stationTimeSeries(self, variable, daterange, stations):
         """Return upper-air temperature and land surface influence
@@ -1244,8 +1267,8 @@ class DownScaling(object):
         """
 
         # temperature and coarse land-surface effects
-        pl, dt = self.spatialMean(variable, daterange)
-        shape = self.ds_dem['elevation'].shape
+        pl, dt, _ = self.spatial_pl_dt(variable, daterange)
+        shape = self.ele.shape
 
         # create nc file
         nc_root = nc.Dataset(file_out, 'w', format='NETCDF4_CLASSIC')
@@ -1263,8 +1286,8 @@ class DownScaling(object):
                                     'f4', ('lat', 'lon'), zlib=True)
 
         # assign variables
-        lons = self.ds_dem['lon'].values
-        lats = self.ds_dem['lat'].values
+        lons = self.lons
+        lats = self.lats
         longitudes[:] = lons
         latitudes[:] = lats
         Ta[:] = pl
@@ -1311,23 +1334,25 @@ class topography(object):
     """
 
     def __init__(self, demFile, demResolution):
-        self.ds_dem = xr.open_dataset(demFile)
         self.R = 6371000  # the mean radius (in meter) of Earth
         self.resolution = demResolution  # units = degree
-        self.lon = self.ds_dem['lon'].values
-        self.lat = self.ds_dem['lat'].values
-        self.shape = [len(self.lat), len(self.lon)]
-        self.size = len(self.lon)*len(self.lat)
+
+        ds_dem = xr.open_dataset(demFile)
+        self.ele = ds_dem['elevation'][0].values
+        self.lons = ds_dem['lon'].values
+        self.lats = ds_dem['lat'].values
+        self.shape = [len(self.lats), len(self.lons)]
+        self.size = len(self.lons)*len(self.lats)
 
     def describe(self):
         """Returns summary information of DEM file
         Example:
             topo.describe()
         """
-        minlon = np.min(self.lon)
-        maxlon = np.max(self.lon)
-        minlat = np.min(self.lat)
-        maxlat = np.max(self.lat)
+        minlon = np.min(self.lons)
+        maxlon = np.max(self.lons)
+        minlat = np.min(self.lats)
+        maxlat = np.max(self.lats)
 
         print('Ranges:  West: %s,  East: %s, South: %s, North: %s ' %
               (minlon, maxlon, minlat, maxlat))
@@ -1365,7 +1390,7 @@ class topography(object):
     def demSize(self):
         """Returns dem size in km"""
 
-        yi = self.pixelLength(self.lat)[0]  # cell size in m
+        yi = self.pixelLength(self.lats)[0]  # cell size in m
         # dem size [lat, lon] in km
         size = [yi * dim/1000 for dim in self.shape]
 
@@ -1448,39 +1473,40 @@ class topography(object):
         """
 
         scale = 3**(L-2)
-        latIndex = list(range(int((scale-1)/2), len(self.lat), scale))
-        lonIndex = list(range(int((scale-1)/2), len(self.lon), scale))
-        f = RegularGridInterpolator((self.lat[latIndex][::-1], self.lon[lonIndex]),
-                                    coarseValue[::-1, :], method='linear', bounds_error=False)
+        latIndex = list(range(int((scale-1)/2), len(self.lats), scale))
+        lonIndex = list(range(int((scale-1)/2), len(self.lons), scale))
+        f = RegularGridInterpolator((self.lats[latIndex][::-1], self.lons[lonIndex]),
+                                    coarseValue[::-1, :], method='linear',
+                                    bounds_error=False, fill_value=None)
 
-        if not (out_xy is None):
+        if out_xy is not None:
             return f(out_xy)
 
         elif self.size <= limitSize:
-            lon, lat = np.meshgrid(self.lon, self.lat)
+            lon, lat = np.meshgrid(self.lons, self.lats)
             gridBase = np.array(
                 [lat.reshape(lat.size), lon.reshape(lon.size)]).T
             fineValue = f(gridBase)
-            return fineValue.reshape((len(self.lat), len(self.lon)))
+            return fineValue.reshape((len(self.lats), len(self.lons)))
         else:
-            fineValue = np.zeros((len(self.lat), len(self.lon)))
+            fineValue = np.zeros((len(self.lats), len(self.lons)))
             chunkN = self.size/limitSize
-            latLegth = len(self.lat)/chunkN
+            latLegth = len(self.lats)/chunkN
 
             for pieceN in range(0, chunkN-1):
                 startLat = latLegth*pieceN
                 endLat = latLegth*(pieceN+1)
-                lon, lat = np.meshgrid(self.lon, self.lat[startLat:endLat])
+                lon, lat = np.meshgrid(self.lons, self.lats[startLat:endLat])
                 gridBase = np.array([lat.reshape(lat.size),
                                      lon.reshape(lon.size)]).T
                 fineValue[startLat:endLat, :] = f(
-                    gridBase).reshape(latLegth, len(self.lon))
+                    gridBase).reshape(latLegth, len(self.lons))
 
-            lon, lat = np.meshgrid(self.lon, self.lat[latLegth*(chunkN-1):])
+            lon, lat = np.meshgrid(self.lons, self.lats[latLegth*(chunkN-1):])
             gridBase = np.array([lat.reshape(lat.size),
                                  lon.reshape(lon.size)]).T
             fineValue[latLegth*(chunkN-1):, :] = f(gridBase).reshape(
-                len(self.lat[latLegth*(chunkN-1):]), len(self.lon))
+                len(self.lats[latLegth*(chunkN-1):]), len(self.lons))
 
             return fineValue
 
@@ -1513,7 +1539,7 @@ class topography(object):
         """
 
         # degree to meter
-        yi, xi = self.pixelLength(self.lat, L)
+        yi, xi = self.pixelLength(self.lats, L)
         xi = np.array(xi)
         # slope
         kernelLon = np.array([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
@@ -1528,9 +1554,11 @@ class topography(object):
         del slope
         # interpolate to the given sites
         if L <= 2:
-            if not (out_xy is None):
-                f = RegularGridInterpolator((self.lat[::-1], self.lon),
-                                            flatness[::-1, :], method='linear', bounds_error=False)
+            if out_xy is not None:
+                f = RegularGridInterpolator(
+                    (self.lats[::-1], self.lons),
+                    flatness[::-1, :], method='linear',
+                    bounds_error=False, fill_value=None)
                 flatness = f(out_xy)
             return flatness
 
@@ -1578,8 +1606,10 @@ class topography(object):
         lowness = self.scale(pctl, Tl, Pl)
         if L <= 2:
             if not (out_xy is None):
-                f = RegularGridInterpolator((self.lat[::-1], self.lon[:]),
-                                            lowness[::-1, :], method='linear', bounds_error=False)
+                f = RegularGridInterpolator(
+                    (self.lats[::-1], self.lons[:]),
+                    lowness[::-1, :], method='linear',
+                    bounds_error=False, fill_value=None)
                 lowness = f(out_xy)
             return lowness
         else:
@@ -1606,18 +1636,14 @@ class topography(object):
         """
 
         # first step
-        #ele = self.ds_dem['elevation'][:]
-        F1 = self.flatness(
-            self.ds_dem['elevation'][0].values, out_xy=out_xy, Tf=initTf)
-        L1 = self.lowness(
-            self.ds_dem['elevation'][0].values, out_xy=out_xy, lowRadius=7)
+        ele = self.ele
+        F1 = self.flatness(ele, out_xy=out_xy, Tf=initTf)
+        L1 = self.lowness(ele, out_xy=out_xy, lowRadius=7)
         PVF1 = F1*L1
         VF1 = 1 - self.scale(PVF1, 0.3, 4)
         # second step
-        F2 = self.flatness(self.ds_dem['elevation'][0].values,
-                           out_xy=out_xy, Tf=initTf/2)
-        L2 = self.lowness(self.ds_dem['elevation'][0].values,
-                          out_xy=out_xy, lowRadius=13)
+        F2 = self.flatness(ele, out_xy=out_xy, Tf=initTf/2)
+        L2 = self.lowness(ele, out_xy=out_xy, lowRadius=13)
         PVF2 = F2*L2
         VF2 = 1 - self.scale(PVF2, 0.3, 4)
         # mrvbf2
@@ -1641,17 +1667,19 @@ class topography(object):
         """
         mrvbf, cf = self.finestScale(initTf=initTf, out_xy=out_xy)
         # smoothed base resolution dem
-        sdemL = self.smoothDEM(self.ds_dem['elevation'][0].values)
+        sdemL = self.smoothDEM(self.ele)
         meanKernel = np.full((3, 3), 1.0/(3*3))
         for L in range(3, 9):
+            # break when step size is out boundery of image
+            scale = 3**(L-2)
+            if (scale > int(self.lats.size/4)
+                    or scale > int(self.lats.size/4)):
+                break
             # print L
             shape = sdemL.shape
             Tf = initTf / (2**(L-1))
             # aggreate sdem for L step
-            latIndex = list(range(1, shape[0], 3))
-            lonIndex = list(range(1, shape[1], 3))
-            sdemL = convolve(sdemL, meanKernel)[latIndex, :]
-            sdemL = sdemL[:, lonIndex]
+            sdemL = convolve(sdemL, meanKernel)[1:shape[0]:3, 1:shape[1]:3]
 
             # MRVBF for L step
             np.seterr(invalid='ignore')
@@ -1715,18 +1743,18 @@ class topography(object):
         """
 
         # area radiaus
-        yi = self.pixelLength(self.lat)[0]  # cell size in m
+        yi = self.pixelLength(self.lats)[0]  # cell size in m
         lowRadius = int(size*1000/(2*yi))  # radius in pixel
         # nearest cell index
-        latPosition = np.abs(self.lat-centerSite[0]).argmin()
-        lonPosition = np.abs(self.lon-centerSite[1]).argmin()
+        latPosition = np.abs(self.lats-centerSite[0]).argmin()
+        lonPosition = np.abs(self.lons-centerSite[1]).argmin()
         # subset area corner index
         latli = latPosition - lowRadius  # bottom index
         latui = latPosition + lowRadius  # top index
         lonli = lonPosition - lowRadius  # left index
         lonri = lonPosition + lowRadius  # right index
         # nearest area with bound size
-        eleSubset = self.ds_dem['elevation'][0].values[latli:latui, lonli:lonri]
+        eleSubset = self.ele[latli:latui, lonli:lonri]
         return eleSubset
 
     def siteHypso(self, out_xy, bound=30):
@@ -1770,17 +1798,19 @@ class topography(object):
             hypso = topo.hypso(bound = 30, out_xy = None)
         """
 
-        yi = self.pixelLength(self.lat)[0]
+        yi = self.pixelLength(self.lats)[0]
         lowRadius = int((bound*1000/yi))
-        pctl = generic_filter(self.ds_dem['elevation'][0].values,
+        pctl = generic_filter(self.ele,
                               self.__percentile, size=lowRadius)
         pctl = pctl/(float(lowRadius)**2)
         lowness = 1-pctl
         del pctl
 
         if not (out_xy is None):
-            lowInterp = RegularGridInterpolator((self.lat[::-1], self.lon),
-                                                lowness[::-1], method='linear', bounds_error=False)
+            lowInterp = RegularGridInterpolator(
+                (self.lats[::-1], self.lons),
+                lowness[::-1], method='linear',
+                bounds_error=False, fill_value=None)
             lowness = lowInterp(out_xy)
         return lowness
 
@@ -1799,10 +1829,10 @@ class topography(object):
             hypso = topo.hypso(bound = 30, out_xy = None)
         """
 
-        yi = self.pixelLength(self.lat)[0]
+        yi = self.pixelLength(self.lats)[0]
         scaleFactor = int(np.ceil(500//yi) // 2 * 2 + 1)
         aggDem = self.aggregation(
-            self.ds_dem['elevation'][0].values, scaleFactor)
+            self.ele, scaleFactor)
 
         # lowness
         lowRadius = 61  # bound*1000/500
@@ -1812,19 +1842,20 @@ class topography(object):
         lowness = 1 - pctl
 
         # refine
-        lowInterp = RegularGridInterpolator((self.lat[aggDem[1]][::-1],
-                                             self.lon[aggDem[2]]),
-                                            lowness[::-1], method='linear', bounds_error=False)
+        lowInterp = RegularGridInterpolator(
+            (self.lats[aggDem[1]][::-1], self.lons[aggDem[2]]),
+            lowness[::-1], method='linear',
+            bounds_error=False, fill_value=None)
 
         if not (out_xy is None):
             lowness = lowInterp(out_xy)
 
         else:
-            lon, lat = np.meshgrid(self.lon, self.lat)
+            lon, lat = np.meshgrid(self.lons, self.lats)
             gridBase = np.array([lat.reshape(lat.size),
                                  lon.reshape(lon.size)]).T
             lowness = lowInterp(gridBase).reshape(
-                (len(self.lat), len(self.lon)))
+                (len(self.lats), len(self.lons)))
 
         return lowness  # ,pctl
 
@@ -1848,8 +1879,8 @@ class topography(object):
         """
 
         if self.sizeCheck():
-            centerlat = self.lat[len(self.lat)/2]
-            centerlon = self.lon[len(self.lon)/2]
+            centerlat = self.lats[len(self.lats)/2]
+            centerlon = self.lons[len(self.lons)/2]
             subEle = self.aroundArea([centerlat, centerlon])
 
             rangeCon = np.max(subEle) - np.min(subEle)
@@ -1860,16 +1891,18 @@ class topography(object):
                 rangeE = np.ones(self.shape)*rangeCon
 
         else:
-            lowRadius = bound*1000/(self.pixelLength(self.lat)[0])
+            lowRadius = bound*1000/(self.pixelLength(self.lats)[0])
             dem = gaussian_filter(
-                self.ds_dem['elevation'][0].values, np.sqrt(4.5))
+                self.ele, np.sqrt(4.5))
             minEle = minimum_filter(dem, size=lowRadius)
             maxEle = maximum_filter(dem, size=lowRadius)
             rangeE = maxEle - minEle
             del minEle, maxEle, dem
             if not (out_xy is None):
-                rangeInterp = RegularGridInterpolator((self.lat[::-1], self.lon),
-                                                      rangeE[::-1], method='linear', bounds_error=False)
+                rangeInterp = RegularGridInterpolator(
+                    (self.lats[::-1], self.lons),
+                    rangeE[::-1], method='linear',
+                    bounds_error=False, fill_value=None)
                 rangeE = rangeInterp(out_xy)
 
         return rangeE
@@ -1908,8 +1941,8 @@ class landSurCorrectionFac(object):
         self.resolution = demResolution
 
         ds_dem = xr.open_dataset(dem)
-        self.lat = ds_dem['lat'].values
-        self.lon = ds_dem['lon'].values
+        self.lats = ds_dem['lat'].values
+        self.lons = ds_dem['lon'].values
 
     def scale(self, eleRange):
 
@@ -1963,8 +1996,8 @@ class landSurCorrectionFac(object):
         Lscf.setncatts({'long_name': "Land surface correction factor"})
 
         # assign variables
-        longitudes[:] = self.lon
-        latitudes[:] = self.lat
+        longitudes[:] = self.lons
+        latitudes[:] = self.lats
         Hypso[:] = hypso
         Mrvbf[:] = mrvbf
         RangeE[:] = eleR
@@ -2064,50 +2097,63 @@ class redcappTemp(object):
         tf = ds_dem['spatial_ref'].attrs['GeoTransform']
 
         self.resolution = float(tf.split()[1])
-        self.lat = ds_dem['lat'].values
-        self.lon = ds_dem['lon'].values
+        self.lats = ds_dem['lat'].values
+        self.lons = ds_dem['lon'].values
 
     def edgeClip(self, values):
         """
         Drops the egde of temperature without data caused by mrvbf simulation.
         """
-
+        
+        lons = self.lons
+        lats = self.lats
         # the corner with values
         shape = values.shape
-        center = [i/2 for i in shape]
-        left = np.min(np.where(np.isfinite(values[int(center[0]), :])))  # left
-        right = np.max(np.where(np.isfinite(
-            values[int(center[0]), :])))+1  # right
+        if len(shape)==2:
+            center = [int(i/2) for i in shape]
+            value_mean = values
+        elif len(shape) == 3:
+            center = [int(i/2) for i in shape[1:]]
+            value_mean = np.nanmean(values,axis=0)
+        else:
+            raise ValueError('Only 2D or 3D arrays are supported.')
+        
+        if np.isnan(value_mean).sum() > 0:
+            left = np.min(np.where(np.isnan(value_mean[center[0], :])))  # left
+            right = np.max(np.where(np.isnan(
+                value_mean[center[0], :])))+1  # right
 
-        upper = np.min(np.where(np.isfinite(
-            values[:, int(center[1])])))  # upper
-        low = np.max(np.where(np.isfinite(values[:, int(center[1])])))+1  # low
-
-        values = values[upper:low, left:right]
-
-        lons = self.lon[left:right]
-        lats = self.lat[upper:low]
+            upper = np.min(np.where(np.isnan(
+                value_mean[:, center[1]])))  # upper
+            low = np.max(np.where(np.isnan(value_mean[:, center[1]])))+1  # low
+            
+            values = values[upper:low, left:right]
+            lons = lons[left:right]
+            lats = lats[upper:low]
 
         return values, lons, lats
 
-    def spatialTemp(self, topo_out):
+    def spatialTemp(self, topo_out, types='mean'):
         """Returns spatialized mean air temperature."""
-        # upp-air temperature and coarse land-surface effects
-        downscaling = DownScaling(self.geop, self.sa, self.pl, self.dem)
-        pl, dt = downscaling.spatialMean(self.variable, self.daterange)
-
         # lscf
-        print("Temperature Done!")
         print("Conducting terrain analysis...")
         LSCF = landSurCorrectionFac(self.dem, self.resolution)
         lscf = LSCF.spatialLSCF(topo_out)
+        print("Terrain analysis Done!")
+
+        # upp-air temperature and coarse land-surface effects
+        downscaling = DownScaling(self.geop, self.sa, self.pl, self.dem)
+
+        pl, dt, out_time = downscaling.spatial_pl_dt(
+            self.variable, self.daterange, types=types)
 
         # redcapp temperaure
         temp = pl+lscf*dt
 
+        # TODO: remove clip
         temp, lons, lats = self.edgeClip(temp)
 
-        return temp, lons, lats
+        return temp, lons, lats, out_time
 
     def stationTemp(self, stations, topo_out):
         """Returns air temperature time series."""
@@ -2142,7 +2188,7 @@ class redcappTemp(object):
         mrvbf simulation donot include the edge. Plsease also see the 
         introduction of clipEdge() fucntion"""
 
-        temp, lons, lats = self.spatialTemp(topo_out)
+        temp, lons, lats, _ = self.spatialTemp(topo_out)
 
         # create nc file
         nc_root = nc.Dataset(temp_out, 'w', format='NETCDF4_CLASSIC')
@@ -2167,6 +2213,49 @@ class redcappTemp(object):
         longitudes.units = 'degree_east (decimal)'
         latitudes.units = 'degree_north (decimal)'
         Ta.units = 'celsius'
+
+        nc_root.close()
+
+    def extractSpatialDataNCF_TS(self, topo_out, temp_out):
+        """"Export spatialized air temperatures of given dem
+        resolution and given time-series in netcdf format. 
+        Please not that the area of output spatial temperature 
+        may be smaller than the given dem owing to the 
+        mrvbf simulation donot include the edge. Plsease also see the 
+        introduction of clipEdge() fucntion"""
+
+        temp, lons, lats, times = self.spatialTemp(topo_out, types='ts')
+
+        # create nc file
+        nc_root = nc.Dataset(temp_out, 'w', format='NETCDF4_CLASSIC')
+
+        # create dimensions
+        nc_root.createDimension('time', len(times))
+        nc_root.createDimension('lat', len(lats))
+        nc_root.createDimension('lon', len(lons))
+        
+        # create variables
+        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
+        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
+        time = nc_root.createVariable('time', 'd', ('time'))
+        Ta = nc_root.createVariable('surface air temperature',
+                                    'f4', ('time', 'lat', 'lon'), zlib=True)
+
+        # assign variables
+        longitudes[:] = lons
+        latitudes[:] = lats
+        Ta[:] = temp
+        time[:] = nc.date2num(times,
+                            units="seconds since 1970-1-1",
+                            calendar='standard')
+
+        # attribute
+        nc_root.description = "REDCAPP-derived surface air temperature"
+        longitudes.units = 'degree_east (decimal)'
+        latitudes.units = 'degree_north (decimal)'
+        Ta.units = 'celsius'
+        time.units = "seconds since 1970-1-1"
+        time.calendar = 'standard'
 
         nc_root.close()
 
