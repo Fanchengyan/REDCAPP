@@ -48,13 +48,19 @@
 #
 # ==============================================================================
 # %%
-from redcapp import redcapp_get, eraData, DataManager, redcappTemp
+from redcapp import (redcapp_get, eraData,
+                     DataManager, redcappTemp,
+                     raster2nc, get_area_from_DEM)
 from datetime import datetime
 from pathlib import Path
 from time import time
 import numpy as np
 # directory containing all raw data and output data
-dir_data = Path('/media/fanchy/data/GeoData/QTP/temperatures/redcapp/temp')
+dir_data = Path(
+    'C:/OneDrive/GitHub/REDCAPP/data')
+folder_out = dir_data / 'result'
+if not folder_out.is_dir():
+    folder_out.mkdir(parents=True)
 # input Digital ELevation Model in any format supported by gdal with lat/lon WGS84,
 # must be (a) in directory indicated above, (b) situated within area indicated
 # below, and (c) encompass the station locations given below.
@@ -78,6 +84,10 @@ spatTemp_out = dir_data / 'spatialT.nc'
 statTemp_out = dir_data / 'stationT.csv'  
 
 
+# convert other DEM format to netcdf format.
+raster2nc(dem_raw, dem_ncdf)
+
+area = get_area_from_DEM(dem_ncdf)
 
 
 #location: alps
@@ -112,11 +122,6 @@ dm = DataManager(dir_data)
 sa = dm.saf_get()    # 2-meter air temperature
 pl = dm.plf_get()    # pressure level air temperature
 geop = dm.geopf_get()  # geopotential file
-
-# %%
-# ==== DEM CONVERSION ==========================================================
-# convert DEM to netcdf format.
-dm.raster2nc(dem_raw, dem_ncdf)
 
 # ==== REDCAPP TEMPERATURE =====================================================
 # setting-up

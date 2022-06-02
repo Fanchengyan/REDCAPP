@@ -26,7 +26,7 @@ Additionally, the input data are not limited to ERA-Interim or ERA5, and could b
 You need to install required dependencies firstly. `conda` is recommended to install those dependencies with one command :
 
 ```bash
-conda install -c conda-forge netCDF4 pygrib numpy scipy rioxarray xarray ecmwfapi cdsapi -y
+conda install -c conda-forge netCDF4 pygrib numpy scipy pandas rioxarray xarray dask ecmwfapi cdsapi -y
 ```
 
 Then, install REDCAPP to your python site-package (This commend only for Python 3 version):

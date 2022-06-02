@@ -36,6 +36,7 @@
 #
 # ==============================================================================
 
+from operator import inv
 import numpy as np
 from ecmwfapi import ECMWFDataServer
 import netCDF4 as nc
@@ -807,7 +808,11 @@ class DownScaling(object):
 
         longitude = self.geop['lon'][:]
         latitude = self.geop['lat'][:]
-        in_v = self.geop['Geopotential'][0, 0, :, :]  # geopotential
+        in_v = self.geop['Geopotential']  # geopotential
+        if in_v.ndim == 4:
+            in_v = in_v[0, 0, :, :]
+        elif in_v.ndim == 3:
+            in_v = in_v[0, :, :]
         fz = RegularGridInterpolator(
             (latitude, longitude), in_v, 'linear',
             bounds_error=False, fill_value=None)
@@ -850,8 +855,11 @@ class DownScaling(object):
             surTa = downscaling.surTa(0, out_xyz_sur)
         """
 
-        in_v = self.sa['2 metre temperature'][ind_time,
-                                              0, :, :]  # geopotential
+        in_v = self.sa['2 metre temperature']  # geopotential
+        if in_v.ndim ==4:
+            in_v = in_v[ind_time, 0, :, :]  
+        elif in_v.ndim == 3:
+            in_v = in_v[ind_time, :, :]
         in_v -= 273.15
         lat = self.sa.variables['lat'][:]
         lon = self.sa.variables['lon'][:]
@@ -1088,7 +1096,7 @@ class DownScaling(object):
         sum_dt = 0
 
         # Surface level sites to interpolate
-        out_xyz_dem, lats, lons, shape = self.demGrid() 
+        out_xyz_dem, lats, lons, shape = self.demGrid()
         # Topography sites to interpolate
         out_xyz_sur = self.surGrid(lats, lons, None)
 
@@ -1118,7 +1126,7 @@ class DownScaling(object):
                 pl.append(pl_obs.reshape(shape))
             dt = np.array(dt)
             pl = np.array(pl)
-            
+
         else:
             raise ValueError('types must be one of ["mean","ts"]')
 
@@ -2081,12 +2089,12 @@ class redcappTemp(object):
 
     """
 
-    def __init__(self, geop, sa, pl, variable, daterange, dem,
+    def __init__(self, geop, sa, pl, daterange, dem,
                  alpha=0.61, beta=1.56, gamma=465):
         self.geop = geop
         self.sa = sa
         self.pl = pl
-        self.variable = variable
+        self.variable = 'Temperature'
         self.daterange = daterange
         self.dem = dem
         self.alpha = alpha
@@ -2104,20 +2112,20 @@ class redcappTemp(object):
         """
         Drops the egde of temperature without data caused by mrvbf simulation.
         """
-        
+
         lons = self.lons
         lats = self.lats
         # the corner with values
         shape = values.shape
-        if len(shape)==2:
+        if len(shape) == 2:
             center = [int(i/2) for i in shape]
             value_mean = values
         elif len(shape) == 3:
             center = [int(i/2) for i in shape[1:]]
-            value_mean = np.nanmean(values,axis=0)
+            value_mean = np.nanmean(values, axis=0)
         else:
             raise ValueError('Only 2D or 3D arrays are supported.')
-        
+
         if np.isnan(value_mean).sum() > 0:
             left = np.min(np.where(np.isnan(value_mean[center[0], :])))  # left
             right = np.max(np.where(np.isnan(
@@ -2126,7 +2134,7 @@ class redcappTemp(object):
             upper = np.min(np.where(np.isnan(
                 value_mean[:, center[1]])))  # upper
             low = np.max(np.where(np.isnan(value_mean[:, center[1]])))+1  # low
-            
+
             values = values[upper:low, left:right]
             lons = lons[left:right]
             lats = lats[upper:low]
@@ -2233,7 +2241,7 @@ class redcappTemp(object):
         nc_root.createDimension('time', len(times))
         nc_root.createDimension('lat', len(lats))
         nc_root.createDimension('lon', len(lons))
-        
+
         # create variables
         longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
         latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
@@ -2246,8 +2254,8 @@ class redcappTemp(object):
         latitudes[:] = lats
         Ta[:] = temp
         time[:] = nc.date2num(times,
-                            units="seconds since 1970-1-1",
-                            calendar='standard')
+                              units="seconds since 1970-1-1",
+                              calendar='standard')
 
         # attribute
         nc_root.description = "REDCAPP-derived surface air temperature"
