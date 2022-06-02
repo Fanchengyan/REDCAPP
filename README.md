@@ -1,4 +1,4 @@
-# rtureREanalysis Downscaling Cold Air Pooling Parameterization (REDCAPP )
+# REanalysis Downscaling Cold Air Pooling Parameterization (REDCAPP )
 
 # What is REDCAPP
 
@@ -51,7 +51,7 @@ REDCAPP is wrotten by python (version 2.7 / 3.6 or higher) and public open. To r
    2. For ERA5 data
       - Register to CDS (free): https://cds.climate.copernicus.eu/user/register
       - Follow the instructions for [How to use the CDS API | (copernicus.eu)](https://cds.climate.copernicus.eu/api-how-to)
-3. Run the script (redcapp_example.py is an example script)
+3. Run the script (redcapp_example_ecmwf.py and redcapp_example_era5.py are example scripts)
 4. Explore the results. Use a netcdf viewer to plot maps and time series.
    Panoply (https://www.giss.nasa.gov/tools/panoply) is a good one.
 5. Customise the code and use it for your project.

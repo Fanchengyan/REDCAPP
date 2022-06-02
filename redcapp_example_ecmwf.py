@@ -126,8 +126,7 @@ geop = dm.geopf_get()  # geopotential file
 # ==== REDCAPP TEMPERATURE =====================================================
 # setting-up
 time_s = time()
-variable = 'Temperature'
-Redcapp = redcappTemp(geop, sa, pl, variable, date, dem_ncdf)
+Redcapp = redcappTemp(geop, sa, pl, date, dem_ncdf)
 
 # SPATIALIZED MEAN AIR TEMPERATURE
 Redcapp.extractSpatialDataNCF(spatTopo_out, spatTemp_out)
