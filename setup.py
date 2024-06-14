@@ -1,6 +1,6 @@
 import setuptools
 
-with open("README.md", "r", encoding='UTF-8') as fh:
+with open("README.md", "r", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -14,19 +14,20 @@ setuptools.setup(
     url="https://github.com/Fanchengyan/REDCAPP",
     packages=setuptools.find_packages(),
     install_requires=[
-        'pygrib',
-        'netCDF4',
-        'setuptools',
-        'numpy',
-        'scipy',
-        'rioxarray',
-        'xarray',
-        'ecmwf-api-client'
+        "pygrib",
+        "netCDF4",
+        "setuptools",
+        "numpy",
+        "scipy",
+        "rioxarray",
+        "xarray",
+        "ecmwf-api-client",
+        "cdsapi",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU GENERAL PUBLIC LICENSE",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
 )
