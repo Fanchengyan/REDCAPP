@@ -36,21 +36,23 @@
 #
 # ==============================================================================
 
-from operator import inv
-import numpy as np
-from ecmwfapi import ECMWFDataServer
-import netCDF4 as nc
-import pygrib as pg
 import csv
-import xarray as xr
-import rioxarray
-from scipy.interpolate import RegularGridInterpolator
-from scipy.ndimage import gaussian_filter, generic_filter, convolve, minimum_filter, maximum_filter
-from math import radians, exp, floor
 from bisect import bisect_left
 from datetime import datetime, timedelta
+from math import exp, floor, radians
+from operator import inv
 from os import path, remove
 from pathlib import Path
+
+import netCDF4 as nc
+import numpy as np
+import pygrib as pg
+import rioxarray
+import xarray as xr
+from ecmwfapi import ECMWFDataServer
+from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import (convolve, gaussian_filter, generic_filter,
+                           maximum_filter, minimum_filter)
 
 
 class ERAgeneric(object):
@@ -2314,14 +2316,16 @@ def raster2nc(raster_file, nc_file, crs='WGS84'):
 
     """
     da = rioxarray.open_rasterio(raster_file)
+    da = da.rio.reproject(crs)
+
     name_map = {'x': 'lon', 'y': 'lat'}
     da = da.rename(name_map)
     ds = xr.Dataset({'elevation': da})
-    if crs:
-        ds.rio.write_crs(crs, inplace=True)
-
+    ds["elevation"].rio.set_spatial_dims("lon", "lat", inplace=True)
+    ds["elevation"].rio.write_crs(crs, inplace=True)
     if path.exists(nc_file):
         remove(nc_file)
+
     ds.to_netcdf(nc_file)
     da.close()
     ds.close()
