@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="UTF-8") as fh:
 
 setuptools.setup(
     name="REDCAPP",
-    version="0.1.0",
+    version="0.1.1",
     author="caobin, fanchegyan",
     author_email="caobin198912@outlook.com, fanchy14@lzu.edu.cn",
     description="downscaling reanalysis data in mountainous areas",
