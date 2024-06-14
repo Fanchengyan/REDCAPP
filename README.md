@@ -26,14 +26,36 @@ Additionally, the input data are not limited to ERA-Interim or ERA5, and could b
 You need to install required dependencies firstly. `conda` is recommended to install those dependencies with one command :
 
 ```bash
-conda install -c conda-forge netCDF4 pygrib numpy scipy pandas rioxarray xarray dask ecmwfapi cdsapi -y
+conda install -c conda-forge netCDF4 pygrib numpy scipy pandas rioxarray xarray dask  -y
 ```
 
 Then, install REDCAPP to your python site-package (This commend only for Python 3 version):
 
+## Install from GitHub:
+
 ```bash
-python setup.py install
+pip install https://github.com/Fanchengyan/REDCAPP.git
 ```
+
+## Install from local:
+
+download the source code from GitHub:
+
+```bash
+git clone https://github.com/Fanchengyan/REDCAPP.git
+```
+
+Go to the package directory:
+
+```bash
+cd REDCAPP
+```
+Then, install the package:
+
+```bash
+pip install .
+```
+
 
 # How to Run REDCAPP
 
@@ -49,8 +71,10 @@ REDCAPP is wrotten by python (version 2.7 / 3.6 or higher) and public open. To r
       - Follow the instructions for [Installing your API key](https://confluence.ecmwf.int/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch#AccessingECMWFdataserversinbatch-key)
       - Please accept the terms and conditions at [http://apps.ecmwf.int/datasets/licences/general](http://apps.ecmwf.int/datasets/licences/general)
    2. For ERA5 data
-      - Register to CDS (free): https://cds.climate.copernicus.eu/user/register
+      - Register to CDS (free): <https://cds.climate.copernicus.eu/user/register>
       - Follow the instructions for [How to use the CDS API | (copernicus.eu)](https://cds.climate.copernicus.eu/api-how-to)
+      - Please accept the terms and conditions at [Licence to use Copernicus Products](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products)
+      
 3. Run the script (redcapp_example_ecmwf.py and redcapp_example_era5.py are example scripts)
 4. Explore the results. Use a netcdf viewer to plot maps and time series.
    Panoply (https://www.giss.nasa.gov/tools/panoply) is a good one.
