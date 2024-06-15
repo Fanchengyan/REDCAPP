@@ -3,24 +3,24 @@ from time import time
 
 import numpy as np
 
-from redcapp import data_manager as dm
+from redcapp import era5 as dm
 from redcapp import raster2nc, redcappTemp
 
 # set the directory containing all raw data and output data
-dir_data = Path("/Volumes/Data/GeoData/YNG/Temperature")
+home_dir = Path("/Volumes/Data/GeoData/YNG/Temperature")
 
-folder_out = dir_data / "result"
-if not folder_out.is_dir():
-    folder_out.mkdir(parents=True)
+data_dir = home_dir / "data"
+if not data_dir.is_dir():
+    data_dir.mkdir(parents=True)
 
 
-dem_file = dir_data / "your_dem.tif"
+dem_file = home_dir / "your_dem.tif"
 
 # output dem file in netcdf format
-dem_nc = dir_data / "DEM_WGS84.nc"
+dem_nc = home_dir / "DEM_WGS84.nc"
 
-spatTopo_out = folder_out / "result/spatTopo.nc"
-spatTemp_out = folder_out / "result//spatialT.nc"
+spatTopo_out = data_dir / "result/spatTopo.nc"
+spatTemp_out = data_dir / "result/spatialT.nc"
 
 
 ############# For first time only: install CDS_API_key  ##################
@@ -39,7 +39,7 @@ spatTemp_out = folder_out / "result//spatialT.nc"
 raster2nc(dem_file, dem_nc)
 
 
-era5 = dm.ERA5_Manager(folder_out)
+era5 = dm.ERA5_Manager(home_dir)
 
 pl = era5.get_pressure_levels(min=500, max=1000)
 year, month, day, t = era5.generate_datetime("2017", "2023", freq="1D")
@@ -52,20 +52,15 @@ era5.retrieve_pressure_levels(pl, year, month, day, t, area)
 
 
 ############### merge and format data ###################
-pl = era5.merge_nc(name="pl", merged_file=None, day_mean=True, format=True)
+# Note: merge and format data are saved in "merge" folder
+era5.merge_nc(name="pl")
+era5.merge_nc(name="sl")
+era5.format_nc(era5.geop)
 
-sa = era5.merge_nc(name="sl", merged_file=None, day_mean=True, format=True)
-
-geop = era5.format_nc(era5.geop)
-
-###############
-pl = era5.get_pl()
-sa = era5.get_sa()
-geop = era5.get_geop()
 
 #################
 time_s = time()
-Redcapp = redcappTemp(geop, sa, pl, date, dem_nc)
+Redcapp = redcappTemp(era5.get_geop(), era5.get_sa(), era5.get_pl(), date, dem_nc)
 
 # SPATIALIZED MEAN AIR TEMPERATURE
 Redcapp.extractSpatialDataNCF_TS(spatTopo_out, spatTemp_out)

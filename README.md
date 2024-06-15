@@ -59,7 +59,7 @@ pip install .
 
 # How to Run REDCAPP
 
-REDCAPP is wrotten by python (version 2.7 / 3.6 or higher) and public open. To run the software, please
+REDCAPP is wrotten by python (version 2.7 / 3.8 or higher) and public open. To run the software, please
 
 1. Get REDCAPP with :
 

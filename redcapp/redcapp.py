@@ -51,27 +51,32 @@ import rioxarray
 import xarray as xr
 from ecmwfapi import ECMWFDataServer
 from scipy.interpolate import RegularGridInterpolator
-from scipy.ndimage import (convolve, gaussian_filter, generic_filter,
-                           maximum_filter, minimum_filter)
+from scipy.ndimage import (
+    convolve,
+    gaussian_filter,
+    generic_filter,
+    maximum_filter,
+    minimum_filter,
+)
 
 
 class ERAgeneric(object):
-    """Parent class for other ERA-Interim classes.
-    """
+    """Parent class for other ERA-Interim classes."""
 
     def areaString(self, area):
         """Converts numerical coordinates into string: North/West/South/East"""
-        res = str(round(area['north'], 2)) + "/"
-        res += str(round(area['west'], 2)) + "/"
-        res += str(round(area['south'], 2)) + "/"
-        res += str(round(area['east'], 2))
-        return(res)
+        res = str(round(area["north"], 2)) + "/"
+        res += str(round(area["west"], 2)) + "/"
+        res += str(round(area["south"], 2)) + "/"
+        res += str(round(area["east"], 2))
+        return res
 
     def dateString(self, date):
         """Converts datetime objects into string"""
-        res = (date['beg'].strftime("%Y-%m-%d") + "/to/" +
-               date['end'].strftime("%Y-%m-%d"))
-        return(res)
+        res = (
+            date["beg"].strftime("%Y-%m-%d") + "/to/" + date["end"].strftime("%Y-%m-%d")
+        )
+        return res
 
     def getPressure(self, elevation):
         """Convert elevation into air pressure using barometric formula"""
@@ -86,28 +91,55 @@ class ERAgeneric(object):
 
     def getPressureLevels(self, elevation):
         """Restrict list of ERA-interim pressure levels to be downloaded"""
-        Pmax = self.getPressure(elevation['min']) + 55
-        Pmin = self.getPressure(elevation['max']) - 55
-        levs = np.array([300, 350, 400, 450, 500, 550, 600, 650, 700, 750,
-                         775, 800, 825, 850, 875, 900, 925, 950, 975, 1000])
+        Pmax = self.getPressure(elevation["min"]) + 55
+        Pmin = self.getPressure(elevation["max"]) - 55
+        levs = np.array(
+            [
+                300,
+                350,
+                400,
+                450,
+                500,
+                550,
+                600,
+                650,
+                700,
+                750,
+                775,
+                800,
+                825,
+                850,
+                875,
+                900,
+                925,
+                950,
+                975,
+                1000,
+            ]
+        )
         mask = (levs >= Pmin) * (levs <= Pmax)  # select
-        levs = '/'.join(map(str, levs[mask]))
+        levs = "/".join(map(str, levs[mask]))
         return levs
 
     def getDictionaryGen(self, area, date):
         """Makes dictionary of generic variables for a server call"""
         dictionary_gen = {
-            'area': self.areaString(area),
-            'date': self.dateString(date),
-            'dataset': "interim",
-            'stream': "oper",
-            'class': "ei",
-            'grid': "0.75/0.75"}
+            "area": self.areaString(area),
+            "date": self.dateString(date),
+            "dataset": "interim",
+            "stream": "oper",
+            "class": "ei",
+            "grid": "0.75/0.75",
+        }
         return dictionary_gen
 
     def getDstring(self):
-        return ('_' + self.date['beg'].strftime("%y%m%d") + "_to_" +
-                self.date['end'].strftime("%y%m%d"))
+        return (
+            "_"
+            + self.date["beg"].strftime("%y%m%d")
+            + "_to_"
+            + self.date["end"].strftime("%y%m%d")
+        )
 
     def download(self):
         # TODO test for file existence
@@ -125,8 +157,10 @@ class ERAgeneric(object):
         remove(self.file_grib)
 
     def __str__(self):
-        string = ("List of generic variables to query ECMWF server for "
-                  "ERA-Interim data: {0}")
+        string = (
+            "List of generic variables to query ECMWF server for "
+            "ERA-Interim data: {0}"
+        )
         return string.format(self.getDictionary)
 
 
@@ -172,33 +206,36 @@ class ERApl(ERAgeneric):
         self.area = area
         self.elevation = elevation
         self.directory = directory
-        self.file_grib = path.join(self.directory, 'ecmwf_erai_pl' +
-                                   self.getDstring()+'.grib')
-        self.file_ncdf = path.join(self.directory, 'ecmwf_erai_pl' +
-                                   self.getDstring()+'.nc')
-        dpar = {'airt': '130.128',           # [K]
-                'geop': '129.128'}
-        self.param = ''
+        self.file_grib = path.join(
+            self.directory, "ecmwf_erai_pl" + self.getDstring() + ".grib"
+        )
+        self.file_ncdf = path.join(
+            self.directory, "ecmwf_erai_pl" + self.getDstring() + ".nc"
+        )
+        dpar = {"airt": "130.128", "geop": "129.128"}  # [K]
+        self.param = ""
         for var in variable:
-            self.param += dpar.get(var)+'/'
-        self.param = self.param.rstrip('/')  # fix last
+            self.param += dpar.get(var) + "/"
+        self.param = self.param.rstrip("/")  # fix last
 
     def getDictionary(self):
         self.dictionary = {
-            'levtype': "pl",
-            'levellist': self.getPressureLevels(self.elevation),
-            'time': "00/06/12/18",
-            'step': "0",
-            'type': "an",
-            'param': self.param,
-            'target': self.file_grib
+            "levtype": "pl",
+            "levellist": self.getPressureLevels(self.elevation),
+            "time": "00/06/12/18",
+            "step": "0",
+            "type": "an",
+            "param": self.param,
+            "target": self.file_grib,
         }
         self.dictionary.update(self.getDictionaryGen(self.area, self.date))
         return self.dictionary
 
     def __str__(self):
-        string = ("List of variables to query ECMWF server for "
-                  "ERA-Interim air tenperature data: {0}")
+        string = (
+            "List of variables to query ECMWF server for "
+            "ERA-Interim air tenperature data: {0}"
+        )
         return string.format(self.getDictionary)
 
 
@@ -232,30 +269,32 @@ class ERAsa(ERAgeneric):
         self.date = date
         self.area = area
         self.directory = directory
-        self.file_grib = path.join(self.directory, 'ecmwf_erai_sa' +
-                                   self.getDstring()+'.grib')
-        self.file_ncdf = path.join(self.directory, 'ecmwf_erai_sa' +
-                                   self.getDstring()+'.nc')
-        dpar = {'airt2': '167.128'}          # [K] 2m values
-        self.param = ''
+        self.file_grib = path.join(
+            self.directory, "ecmwf_erai_sa" + self.getDstring() + ".grib"
+        )
+        self.file_ncdf = path.join(
+            self.directory, "ecmwf_erai_sa" + self.getDstring() + ".nc"
+        )
+        dpar = {"airt2": "167.128"}  # [K] 2m values
+        self.param = ""
         for var in variable:
-            self.param += dpar.get(var)+'/'
-        self.param = self.param.rstrip('/')  # fix last
+            self.param += dpar.get(var) + "/"
+        self.param = self.param.rstrip("/")  # fix last
 
     def getDictionary(self):
         self.dictionary = {
-            'levtype': "sfc",
-            'time': "00/06/12/18",
-            'step': "0",
-            'type': "an",
-            'param': self.param,
-            'target': self.file_grib
+            "levtype": "sfc",
+            "time": "00/06/12/18",
+            "step": "0",
+            "type": "an",
+            "param": self.param,
+            "target": self.file_grib,
         }
         self.dictionary.update(self.getDictionaryGen(self.area, self.date))
         return self.dictionary
 
     def __str__(self):
-        string = ("Class for ERA-Interim surface analysis data: {0}")
+        string = "Class for ERA-Interim surface analysis data: {0}"
         return string.format(self.getDictionary)
 
 
@@ -280,27 +319,28 @@ class ERAto(ERAgeneric):
 
     def __init__(self, area, directory):
         self.area = area
-        self.date = {'beg': datetime(1979, 1, 1),
-                     'end': datetime(1979, 1, 1)}
+        self.date = {"beg": datetime(1979, 1, 1), "end": datetime(1979, 1, 1)}
         self.directory = directory
-        self.file_grib = path.join(self.directory, 'ecmwf_erai_to.grib')
-        self.file_ncdf = path.join(self.directory, 'ecmwf_erai_to.nc')
+        self.file_grib = path.join(self.directory, "ecmwf_erai_to.grib")
+        self.file_ncdf = path.join(self.directory, "ecmwf_erai_to.nc")
 
     def getDictionary(self):
         self.dictionary = {
-            'levtype': "sfc",
-            'time': "12",
-            'step': "0",
-            'type': "an",
-            'param': "129.128",
-            'target': self.file_grib
+            "levtype": "sfc",
+            "time": "12",
+            "step": "0",
+            "type": "an",
+            "param": "129.128",
+            "target": self.file_grib,
         }
         self.dictionary.update(self.getDictionaryGen(self.area, self.date))
         return self.dictionary
 
     def __str__(self):
-        string = ("List of variables to query ECMWF server for "
-                  "ERA-Interim air tenperature data: {0}")
+        string = (
+            "List of variables to query ECMWF server for "
+            "ERA-Interim air tenperature data: {0}"
+        )
         return string.format(self.getDictionary)
 
 
@@ -331,8 +371,9 @@ class gribFile(object):
         self.lons = grbs[1].latlons()[1][0, :]
         for grb in grbs:
             self.jday.append(pg.julian_to_datetime(grb.julianDay))
-            self.date.append(pg.julian_to_datetime(grb.julianDay) +
-                             timedelta(hours=grb.step))
+            self.date.append(
+                pg.julian_to_datetime(grb.julianDay) + timedelta(hours=grb.step)
+            )
             self.levs.append(grb.level)
             self.nams.append(grb.name)
             self.step.append(grb.step)  # usually 0, 3/6/9/12 for accumulated
@@ -350,38 +391,44 @@ class gribFile(object):
         self.lats.sort()
         self.lons.sort()
         self.step.sort()  # expect 3/6/9/12 for accumulated
-        self.accumulated = ['Total precipitation',
-                            'Surface thermal radiation downwards',
-                            'Surface solar radiation downwards']
-        self.ndate = nc.date2num(self.date,  # netCDF date
-                                 units="seconds since 1970-1-1",
-                                 calendar='standard')  # like UNIX time
+        self.accumulated = [
+            "Total precipitation",
+            "Surface thermal radiation downwards",
+            "Surface solar radiation downwards",
+        ]
+        self.ndate = nc.date2num(
+            self.date,  # netCDF date
+            units="seconds since 1970-1-1",
+            calendar="standard",
+        )  # like UNIX time
 
     def list(self):
-        return {'Dates': self.date,
-                'Levels': self.levs,
-                'Variables': self.nams,
-                'Latitudes': self.lats,
-                'Longitudes': self.lons}
+        return {
+            "Dates": self.date,
+            "Levels": self.levs,
+            "Variables": self.nams,
+            "Latitudes": self.lats,
+            "Longitudes": self.lons,
+        }
 
     def toNCDF(self, file_ncdf):
         # NCDF file name
         self.file_ncdf = file_ncdf
 
         # initialize new data file and create group
-        ncd_root = nc.Dataset(self.file_ncdf, 'w', format='NETCDF4_CLASSIC')
+        ncd_root = nc.Dataset(self.file_ncdf, "w", format="NETCDF4_CLASSIC")
 
         # make dimensions
-        ncd_root.createDimension('level', len(self.levs))
-        ncd_root.createDimension('time',  len(self.date))
-        ncd_root.createDimension('lat',   len(self.lats))
-        ncd_root.createDimension('lon',   len(self.lons))
+        ncd_root.createDimension("level", len(self.levs))
+        ncd_root.createDimension("time", len(self.date))
+        ncd_root.createDimension("lat", len(self.lats))
+        ncd_root.createDimension("lon", len(self.lons))
 
         # make dimension variables
-        times = ncd_root.createVariable('time',    'd', ('time',))
-        levels = ncd_root.createVariable('level',  'i4', ('level',))
-        latitudes = ncd_root.createVariable('lat',    'f4', ('lat',))
-        longitudes = ncd_root.createVariable('lon',    'f4', ('lon',))
+        times = ncd_root.createVariable("time", "d", ("time",))
+        levels = ncd_root.createVariable("level", "i4", ("level",))
+        latitudes = ncd_root.createVariable("lat", "f4", ("lat",))
+        longitudes = ncd_root.createVariable("lon", "f4", ("lon",))
 
         # assign dimensions
         times[:] = self.ndate
@@ -393,44 +440,61 @@ class gribFile(object):
         variables = []
         for var in self.nams:
             # isolate from [u'Geopotential']
-            variables.append(ncd_root.createVariable(var, 'f4',
-                                                     ('time', 'level',
-                                                         'lat', 'lon',)))
+            variables.append(
+                ncd_root.createVariable(
+                    var,
+                    "f4",
+                    (
+                        "time",
+                        "level",
+                        "lat",
+                        "lon",
+                    ),
+                )
+            )
         # read file, get levels and times
-        grbindx = pg.index(self.file_grib, 'name', 'level', 'dataDate',
-                           'dataTime', 'step')
+        grbindx = pg.index(
+            self.file_grib, "name", "level", "dataDate", "dataTime", "step"
+        )
 
         levs = np.array(self.levs)
         for l in self.levs:
             for d in self.jday:
-                nd = nc.date2num(d, units="seconds since 1970-1-1",
-                                 calendar='standard')
+                nd = nc.date2num(d, units="seconds since 1970-1-1", calendar="standard")
                 var_n = 0
                 for var in self.nams:
                     # distinguish forecast data to deal with accumulated fields
                     if var in self.accumulated:
                         vpre = 0  # initial for subtraction
                         for s in self.step:
-                            sel = grbindx.select(name=var, level=l,
-                                                 dataDate=int(
-                                                     d.strftime("%Y%m%d")),
-                                                 dataTime=d.hour * 100, step=s)
+                            sel = grbindx.select(
+                                name=var,
+                                level=l,
+                                dataDate=int(d.strftime("%Y%m%d")),
+                                dataTime=d.hour * 100,
+                                step=s,
+                            )
                             vnow = sel[0].values - vpre
                             vpre = sel[0].values
 
                             # assign values to netCDF
                             nds = nd + s * 3600  # add step seconds to ncdf time
-                            variables[var_n][self.ndate ==
-                                             nds, levs == l, ::-1, :] = vnow
+                            variables[var_n][
+                                self.ndate == nds, levs == l, ::-1, :
+                            ] = vnow
                     else:
-                        sel = grbindx.select(name=var, level=l,
-                                             dataDate=int(
-                                                 d.strftime("%Y%m%d")),
-                                             dataTime=d.hour * 100, step=0)
+                        sel = grbindx.select(
+                            name=var,
+                            level=l,
+                            dataDate=int(d.strftime("%Y%m%d")),
+                            dataTime=d.hour * 100,
+                            step=0,
+                        )
 
                         # assign values to netCDF
-                        variables[var_n][self.ndate == nd,
-                                         levs == l, ::-1, :] = sel[0].values
+                        variables[var_n][self.ndate == nd, levs == l, ::-1, :] = sel[
+                            0
+                        ].values
                     var_n += 1
 
         # close ERA-Interim GRIB
@@ -442,7 +506,7 @@ class gribFile(object):
         return self.file_ncdf
 
     def __str__(self):
-        return 'Wrapper object for grib files that can make ncdf.'
+        return "Wrapper object for grib files that can make ncdf."
 
 
 class eraData(object):
@@ -457,25 +521,25 @@ class eraData(object):
         self.absZero = 273.15
 
     def describe(self):
-        '''
+        """
         Generates and prints information on the data contained in ncdf file. The
         information is later on available as a variable.
-        '''
-        ncf = nc.Dataset(self.file_ncdf, 'r')
-        self.lat_min = min(ncf.variables['lat'][:])
-        self.lat_max = max(ncf.variables['lat'][:])
-        self.lon_min = min(ncf.variables['lon'][:])
-        self.lon_max = max(ncf.variables['lon'][:])
-        self.lev_min = min(ncf.variables['level'][:])
-        self.lev_max = max(ncf.variables['level'][:])
-        self.time_min = min(ncf.variables['time'][:])
-        self.time_max = max(ncf.variables['time'][:])
-        self.time_min = nc.num2date(self.time_min,
-                                    units="seconds since 1970-1-1",
-                                    calendar='standard')
-        self.time_max = nc.num2date(self.time_max,
-                                    units="seconds since 1970-1-1",
-                                    calendar='standard')
+        """
+        ncf = nc.Dataset(self.file_ncdf, "r")
+        self.lat_min = min(ncf.variables["lat"][:])
+        self.lat_max = max(ncf.variables["lat"][:])
+        self.lon_min = min(ncf.variables["lon"][:])
+        self.lon_max = max(ncf.variables["lon"][:])
+        self.lev_min = min(ncf.variables["level"][:])
+        self.lev_max = max(ncf.variables["level"][:])
+        self.time_min = min(ncf.variables["time"][:])
+        self.time_max = max(ncf.variables["time"][:])
+        self.time_min = nc.num2date(
+            self.time_min, units="seconds since 1970-1-1", calendar="standard"
+        )
+        self.time_max = nc.num2date(
+            self.time_max, units="seconds since 1970-1-1", calendar="standard"
+        )
 
         print("Time:      " + str(self.time_min) + " to " + str(self.time_max))
         print("Latitude:  " + str(self.lat_min) + " to " + str(self.lat_max))
@@ -484,38 +548,46 @@ class eraData(object):
         ncf.close()
 
     def NCDFmerge(self, file_list, file_new):
-        '''Merge multiple netCDF files with identical structure but differing
-        times together into one netCDF file'''
+        """Merge multiple netCDF files with identical structure but differing
+        times together into one netCDF file"""
         # TODO: sort in time dimension
         # merge netCDF files
-        ncl = nc.MFDataset(file_list, aggdim='time')
+        ncl = nc.MFDataset(file_list, aggdim="time")
 
         # initialize new data file and create group
-        ncn = nc.Dataset(file_new, 'w', format='NETCDF4_CLASSIC')
+        ncn = nc.Dataset(file_new, "w", format="NETCDF4_CLASSIC")
 
         # make dimensions
-        ncn.createDimension('level', len(ncl.variables['level'][:]))
-        ncn.createDimension('time',  len(ncl.variables['time'][:]))
-        ncn.createDimension('lat',   len(ncl.variables['lat'][:]))
-        ncn.createDimension('lon',   len(ncl.variables['lon'][:]))
+        ncn.createDimension("level", len(ncl.variables["level"][:]))
+        ncn.createDimension("time", len(ncl.variables["time"][:]))
+        ncn.createDimension("lat", len(ncl.variables["lat"][:]))
+        ncn.createDimension("lon", len(ncl.variables["lon"][:]))
 
         # make dimension variables
-        times = ncn.createVariable('time',    'd', ('time',))
-        levels = ncn.createVariable('level',  'i4', ('level',))
-        latitudes = ncn.createVariable('lat',    'f4', ('lat',))
-        longitudes = ncn.createVariable('lon',    'f4', ('lon',))
+        times = ncn.createVariable("time", "d", ("time",))
+        levels = ncn.createVariable("level", "i4", ("level",))
+        latitudes = ncn.createVariable("lat", "f4", ("lat",))
+        longitudes = ncn.createVariable("lon", "f4", ("lon",))
 
         # assign dimensions
-        times[:] = ncl.variables['time'][:]
-        levels[:] = ncl.variables['level'][:]
-        latitudes[:] = ncl.variables['lat'][:]
-        longitudes[:] = ncl.variables['lon'][:]
+        times[:] = ncl.variables["time"][:]
+        levels[:] = ncl.variables["level"][:]
+        latitudes[:] = ncl.variables["lat"][:]
+        longitudes[:] = ncl.variables["lon"][:]
 
         # create and assign variables
         for var in ncl.variables:
-            if not var in ['time', 'level', 'lat', 'lon']:
-                nowvar = ncn.createVariable(var, 'f4', ('time', 'level',
-                                                        'lat', 'lon',))
+            if not var in ["time", "level", "lat", "lon"]:
+                nowvar = ncn.createVariable(
+                    var,
+                    "f4",
+                    (
+                        "time",
+                        "level",
+                        "lat",
+                        "lon",
+                    ),
+                )
                 nowvar[:, :, :, :] = ncl.variables[var][:, :, :, :]
 
         # cleanup
@@ -523,34 +595,35 @@ class eraData(object):
         ncn.close()
 
     def split_seq(self, seq, size):
-        '''Split a list into chunks of defined size'''
+        """Split a list into chunks of defined size"""
         newseq = []
-        splitsize = 1.0/size*len(seq)
+        splitsize = 1.0 / size * len(seq)
         for i in range(size):
-            newseq.append(seq[int(round(i*splitsize)):
-                              int(round((i+1)*splitsize))])
+            newseq.append(
+                seq[int(round(i * splitsize)) : int(round((i + 1) * splitsize))]
+            )
         return newseq
 
-    def DateFile(self, filename, get='beg'):
-        if get == 'beg':
+    def DateFile(self, filename, get="beg"):
+        if get == "beg":
             res = Path(filename).name[-19:-13]
-        if get == 'end':
-            res = Path(filename).name[-9: -3]
+        if get == "end":
+            res = Path(filename).name[-9:-3]
         return res
 
     def NCDFmergeWildcard(self, files, n_to_combine):
-        '''Merge multiple netCDF files with identical structure but differing
-        times together into one netCDF file'''
+        """Merge multiple netCDF files with identical structure but differing
+        times together into one netCDF file"""
         # get directory list and split
         all_list = self.split_seq(files, n_to_combine)
 
         for file_list in all_list:
-            sbeg = self.DateFile(file_list[0], get='beg')
-            send = self.DateFile(file_list[-1], get='end')
+            sbeg = self.DateFile(file_list[0], get="beg")
+            send = self.DateFile(file_list[-1], get="end")
             path = Path(file_list[0])
             file_new = path.parent / f"{path.name[:-19]}m_{sbeg}_{send}.nc"
-            print(f'Files to be merged:\n {file_list}')
-            print(f'Merged file is : \n{file_new}')
+            print(f"Files to be merged:\n {file_list}")
+            print(f"Merged file is : \n{file_new}")
             self.NCDFmerge(file_list, file_new)
 
 
@@ -595,7 +668,7 @@ class redcapp_get(object):
         self.elevation = elevation
         self.directory = directory
         self.increment = increment_days
-        self.nc_files = ''
+        self.nc_files = ""
         # TODO ensure increments is smaller or equal than chosen time window
 
     def getFileNames(self):
@@ -604,26 +677,27 @@ class redcapp_get(object):
 
     def retrieve(self, overwrite=False):
         # define variables
-        var_pl = ['airt', 'geop']
-        var_sa = ['airt2']
+        var_pl = ["airt", "geop"]
+        var_sa = ["airt2"]
 
         # enter time loop
-        date_i = {'beg': datetime(1994, 1, 1), 'end': datetime(1999, 1, 2)}
-        slices = floor(float((self.date['end'] - self.date['beg']).days) /
-                       self.increment)+1
+        date_i = {"beg": datetime(1994, 1, 1), "end": datetime(1999, 1, 2)}
+        slices = (
+            floor(float((self.date["end"] - self.date["beg"]).days) / self.increment)
+            + 1
+        )
 
         for ind in range(0, int(slices)):
             # prepare time slices
-            date_i['beg'] = self.date['beg'] + \
-                timedelta(days=self.increment * ind)
-            date_i['end'] = self.date['beg'] + \
-                timedelta(days=self.increment * (ind+1) - 1)
+            date_i["beg"] = self.date["beg"] + timedelta(days=self.increment * ind)
+            date_i["end"] = self.date["beg"] + timedelta(
+                days=self.increment * (ind + 1) - 1
+            )
             if ind == (slices - 1):
-                date_i['end'] = self.date['end']
+                date_i["end"] = self.date["end"]
 
             # actual functions
-            pl = ERApl(date_i, self.area, self.elevation,
-                       var_pl, self.directory)
+            pl = ERApl(date_i, self.area, self.elevation, var_pl, self.directory)
             sa = ERAsa(date_i, self.area, var_sa, self.directory)
             self.ERAli = [pl, sa]  # combine in list
 
@@ -631,10 +705,9 @@ class redcapp_get(object):
             for era in self.ERAli:
                 # skip when file has been downlaoded
                 if not overwrite:
-                    ncfile = Path(era.getDictionary()[
-                                  'target']).with_suffix('.nc')
+                    ncfile = Path(era.getDictionary()["target"]).with_suffix(".nc")
                     if ncfile.is_file():
-                        print(f'{ncfile} has been downloaded. Skipping...')
+                        print(f"{ncfile} has been downloaded. Skipping...")
                         continue
                 era.download()
                 era.toNCDF()
@@ -642,10 +715,9 @@ class redcapp_get(object):
         # topography
         top = ERAto(self.area, self.directory)
         if not overwrite:
-            ncfile = Path(top.getDictionary()[
-                'target']).with_suffix('.nc')
+            ncfile = Path(top.getDictionary()["target"]).with_suffix(".nc")
             if ncfile.is_file():
-                print(f'{ncfile} has been downloaded. Skipping...')
+                print(f"{ncfile} has been downloaded. Skipping...")
                 return None
 
         top.download()
@@ -679,20 +751,20 @@ class DataManager(object):
         else:
             print((f"File {nomenclature} not found in directory {self.dir}"))
 
-    def plf_get(self, nomenclature='ecmwf_erai_pl_m*'):
-        """finds the pressure level files in the directory 
+    def plf_get(self, nomenclature="ecmwf_erai_pl_m*"):
+        """finds the pressure level files in the directory
         based on 'ecmwf_erai_pl_m*'
         """
         return self.file_get(nomenclature)
 
-    def saf_get(self, nomenclature='ecmwf_erai_sa_m*'):
-        """finds the pressure level files in the directory 
+    def saf_get(self, nomenclature="ecmwf_erai_sa_m*"):
+        """finds the pressure level files in the directory
         based on 'ecmwf_erai_pl_m*'
         """
         return self.file_get(nomenclature)
 
-    def geopf_get(self, nomenclature='ecmwf_erai_to*'):
-        """finds the era-interim geopotential file in the directory 
+    def geopf_get(self, nomenclature="ecmwf_erai_to*"):
+        """finds the era-interim geopotential file in the directory
         based on 'ecmwf_erai_to*'
         """
         return self.file_get(nomenclature)
@@ -724,15 +796,15 @@ class DownScaling(object):
         self.pl = nc.Dataset(pl)
         if dem is not None:
             ds_dem = xr.open_dataset(dem)
-            self.lons = ds_dem['lon'].values
-            self.lats = ds_dem['lat'].values
-            self.ele = ds_dem['elevation'][0].values
+            self.lons = ds_dem["lon"].values
+            self.lats = ds_dem["lat"].values
+            self.ele = ds_dem["elevation"][0].values
 
     def demGrid(self, stations=None):
-        """Return metadata of given stations or dem. 
+        """Return metadata of given stations or dem.
         Format of stations desired [lat, lon, geop].
 
-        Args: 
+        Args:
             stations: A list of dictionaries describing stations. If not given,
                 metadata derived from given dem.
 
@@ -741,23 +813,24 @@ class DownScaling(object):
             lons: Longitude of input sites
             lats: Latitude of input sites
             shape: Shape of input dem or sites
-            names: Name of input stations. Names will only be avaiable when 
+            names: Name of input stations. Names will only be avaiable when
                 stations are inputted
         """
 
         if not (stations is None):
-            lats = [s['lat'] for s in stations]
-            lons = [s['lon'] for s in stations]
-            names = [s['name'] for s in stations]
-            siteLocation = np.asarray([[s['lat'], s['lon'],
-                                        s['ele']*self.g] for s in stations])
+            lats = [s["lat"] for s in stations]
+            lons = [s["lon"] for s in stations]
+            names = [s["name"] for s in stations]
+            siteLocation = np.asarray(
+                [[s["lat"], s["lon"], s["ele"] * self.g] for s in stations]
+            )
             shape = siteLocation.shape
             return siteLocation, lats, lons, shape, names
 
         # out_xyz based on dem
         lons = self.lons
         lats = self.lats
-        geop = self.ele*self.g
+        geop = self.ele * self.g
         shape = geop.shape
 
         lons, lats = np.meshgrid(lons, lats)
@@ -774,12 +847,12 @@ class DownScaling(object):
         Returns original (NO interpolation) coarse gird metadata
         in format of [lat, lon, geop], based on geopotential file
         """
-        longitude = self.geop['lon'][:]
-        latitude = self.geop['lat'][:]
+        longitude = self.geop["lon"][:]
+        latitude = self.geop["lat"][:]
         lons, lats = np.meshgrid(longitude, latitude)
         lons = lons.reshape(lons.size)
         lats = lats.reshape(lats.size)
-        geop = self.geop['Geopotential'][0, :, :]  # geopotential
+        geop = self.geop["Geopotential"][0, :, :]  # geopotential
         geop = geop.reshape(geop.size)
 
         out_xyz_ori = np.array([lats, lons, geop]).T
@@ -790,7 +863,7 @@ class DownScaling(object):
         """
         Return interpolated surface geopotetial.
 
-        Args: 
+        Args:
             lats: Latitude of intersted sites
             lons: Longitude of intersted sites
             stations: A list of dictionaries describing stations. If not given,
@@ -808,22 +881,22 @@ class DownScaling(object):
             out_xyz_sur = downscaling.surGrid(lats, lons, out_xyz_dem[:,:2])
         """
 
-        longitude = self.geop['lon'][:]
-        latitude = self.geop['lat'][:]
-        in_v = self.geop['Geopotential']  # geopotential
+        longitude = self.geop["lon"][:]
+        latitude = self.geop["lat"][:]
+        in_v = self.geop["Geopotential"]  # geopotential
         if in_v.ndim == 4:
             in_v = in_v[0, 0, :, :]
         elif in_v.ndim == 3:
             in_v = in_v[0, :, :]
         fz = RegularGridInterpolator(
-            (latitude, longitude), in_v, 'linear',
-            bounds_error=False, fill_value=None)
+            (latitude, longitude), in_v, "linear", bounds_error=False, fill_value=None
+        )
         out_xy = np.array([lats, lons]).T
 
         if not (stations is None):
-            lats = [s['lat'] for s in stations]
-            lons = [s['lon'] for s in stations]
-            out_xy = np.asarray([[s['lat'], s['lon']] for s in stations])
+            lats = [s["lat"] for s in stations]
+            lons = [s["lon"] for s in stations]
+            out_xy = np.asarray([[s["lat"], s["lon"]] for s in stations])
 
         z_interp = fz(out_xy)
         out_xyz_sur = np.array([lats, lons, z_interp]).T
@@ -836,10 +909,10 @@ class DownScaling(object):
         Args:
             ind_time: Time need to be interpolated. Time is in interger (e.g.
             0, 1, 2)
-            out_xyz_sur: 
+            out_xyz_sur:
 
         Returns:
-            t_sa: interpolation fine-scale surface air temperatue based on 
+            t_sa: interpolation fine-scale surface air temperatue based on
             grid 2-meter temperature
 
         Example:
@@ -857,18 +930,18 @@ class DownScaling(object):
             surTa = downscaling.surTa(0, out_xyz_sur)
         """
 
-        in_v = self.sa['2 metre temperature']  # geopotential
-        if in_v.ndim ==4:
-            in_v = in_v[ind_time, 0, :, :]  
+        in_v = self.sa["2 metre temperature"]  # geopotential
+        if in_v.ndim == 4:
+            in_v = in_v[ind_time, 0, :, :]
         elif in_v.ndim == 3:
             in_v = in_v[ind_time, :, :]
         in_v -= 273.15
-        lat = self.sa.variables['lat'][:]
-        lon = self.sa.variables['lon'][:]
+        lat = self.sa.variables["lat"][:]
+        lon = self.sa.variables["lon"][:]
 
         f_sa = RegularGridInterpolator(
-            (lat, lon), in_v, 'linear',
-            bounds_error=False, fill_value=None)
+            (lat, lon), in_v, "linear", bounds_error=False, fill_value=None
+        )
         t_sa = f_sa(out_xyz_sur[:, :2])
 
         return t_sa
@@ -879,15 +952,15 @@ class DownScaling(object):
         pressure levels. The function are called by inLevelInterp() to
         get the input ERA-Interim values.
 
-        Args: 
+        Args:
             variable: Given interpolated climate variable
             ind_time: Time need to be interpolated. Time is in interger (e.g.
             0, 1, 2)
 
         Returns:
-            gridT: Grid temperatures of different pressure levels. Retruned 
+            gridT: Grid temperatures of different pressure levels. Retruned
             temperature are formated in [level, lat, lon]
-            gridZ: Grid geopotential of different pressure levels. Retruned 
+            gridZ: Grid geopotential of different pressure levels. Retruned
             temperature are formated in [level, lat, lon]
             gridLon: Grid longitude of pressure level variables
             gridLat: Grid latitude of pressure level variables
@@ -898,11 +971,11 @@ class DownScaling(object):
         """
 
         gridT = self.pl.variables[variable][ind_time, :, :, :]
-        gridZ = self.pl.variables['Geopotential'][ind_time, :, :, :]
-        #x and y
+        gridZ = self.pl.variables["Geopotential"][ind_time, :, :, :]
+        # x and y
 
-        gridLat = self.pl['lat'][:]
-        gridLon = self.pl['lon'][:]
+        gridLat = self.pl["lat"][:]
+        gridLon = self.pl["lon"][:]
 
         return gridT, gridZ, gridLat, gridLon
 
@@ -912,18 +985,18 @@ class DownScaling(object):
         of different pressure levels.
 
         Args:
-            gridT: Grid temperatures of different pressure levels. Retruned 
+            gridT: Grid temperatures of different pressure levels. Retruned
                 temperature are formated in [level, lat, lon]
-            gridZ: Grid geopotential of different pressure levels. Retruned 
+            gridZ: Grid geopotential of different pressure levels. Retruned
                 temperature are formated in [level, lat, lon]
             gridLat: Grid longitude of pressure level variables
             gridLon: Grid latitude of pressure level variables
             out_xyz: Given sites, which will be interpolated.
 
         Returns:
-            t_interp: Interpolated temperatre of different pressure levels. 
+            t_interp: Interpolated temperatre of different pressure levels.
                 The returned values are fomrated in [level, lat, lon]
-            z_interp: Interpolated geopotential of different pressure levels. 
+            z_interp: Interpolated geopotential of different pressure levels.
                 The returned values are fomrated in [level, lat, lon]
 
         Examples:
@@ -936,7 +1009,7 @@ class DownScaling(object):
             surTa = downscaling.surTa(0, out_xyz_sur)
             #original ERA-I values
             gridT,gridZ,gridLat,gridLon = downscaling.gridValue(variable,0)
-            #interpolate temperatures and geopotential of different 
+            #interpolate temperatures and geopotential of different
             pressure levels.
 
             t_interp, z_interp = downscaling.inLevelInterp(gridT,gridZ,
@@ -952,11 +1025,19 @@ class DownScaling(object):
         # temperatue and elevation interpolation 2d
         for i in range(shape[0]):
             ft = RegularGridInterpolator(
-                (gridLat, gridLon), gridT[i, :, :], 'linear',
-                bounds_error=False, fill_value=None)
+                (gridLat, gridLon),
+                gridT[i, :, :],
+                "linear",
+                bounds_error=False,
+                fill_value=None,
+            )
             fz = RegularGridInterpolator(
-                (gridLat, gridLon), gridZ[i, :, :], 'linear',
-                bounds_error=False, fill_value=None)
+                (gridLat, gridLon),
+                gridZ[i, :, :],
+                "linear",
+                bounds_error=False,
+                fill_value=None,
+            )
             t_interp[i, :] = ft(out_xyz[:, :2])  # temperature
             z_interp[i, :] = fz(out_xyz[:, :2])  # elevation
 
@@ -965,21 +1046,21 @@ class DownScaling(object):
         return t_interp[::-1, :], z_interp[::-1, :]
 
     def fast1d(self, t_interp, z_interp, out_xyz):
-        """This is a 1D interpoation. The function return interpolated 
-        upper air temperature at the given sites by 
+        """This is a 1D interpoation. The function return interpolated
+        upper air temperature at the given sites by
         interpolation between different pressure levels.
 
         Args:
-            t_interp: Interpolated temperatre of different pressure levels. 
+            t_interp: Interpolated temperatre of different pressure levels.
                 The returned values are fomrated in [level, lat, lon]
-            z_interp: Interpolated geopotential of different pressure levels. 
+            z_interp: Interpolated geopotential of different pressure levels.
                 The returned values are fomrated in [level, lat, lon]
             out_xyz: Given sites with elevation, which will be interpolated.
 
         Returns:
             dG:upper-air temperature at given sites
 
-        Example: 
+        Example:
             downscaling = DownScaling(dem, geop, sa, pl)
 
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
@@ -989,7 +1070,7 @@ class DownScaling(object):
             surTa = downscaling.surTa(0, out_xyz_sur)
             #original ERA-I values
             gridT,gridZ,gridLat,gridLon = downscaling.gridValue(variable,0)
-            #interpolate temperatures and geopotential of different 
+            #interpolate temperatures and geopotential of different
             pressure levels.
 
             t_interp, z_interp = downscaling.inLevelInterp(gridT,gridZ,
@@ -1004,14 +1085,14 @@ class DownScaling(object):
         ele = out_xyz[:, 2]
         size = np.arange(out_xyz.shape[0])
         n = [bisect_left(z_interp[:, i], ele[i]) for i in size]
-        n = [x+1 if x == 0 else x for x in n]
+        n = [x + 1 if x == 0 else x for x in n]
 
-        lowN = [l-1 for l in n]
+        lowN = [l - 1 for l in n]
 
         upperT = t_interp[n, size]
         upperZ = z_interp[n, size]
-        dG = upperT-t_interp[lowN, size]  # <0
-        dG /= upperZ-z_interp[lowN, size]  # <0
+        dG = upperT - t_interp[lowN, size]  # <0
+        dG /= upperZ - z_interp[lowN, size]  # <0
         dG *= out_xyz[:, 2] - upperZ  # >0
         dG += upperT
 
@@ -1024,9 +1105,9 @@ class DownScaling(object):
             variable: Interpolated climated variable
             ind_time: Time need to be interpolated. Time is in interger (e.g.
             0, 1, 2)
-            out_xyz_sur: Interploated sites[lat, lon, geop], in which the 
+            out_xyz_sur: Interploated sites[lat, lon, geop], in which the
             geopotential are interpolated from ERA-Interim geopotential file.
-            out_xyz_obs: Interploated sites[lat, lon, geop], in which the 
+            out_xyz_obs: Interploated sites[lat, lon, geop], in which the
             geopotential are gotten from DEM.
 
         Returns:
@@ -1039,24 +1120,25 @@ class DownScaling(object):
         Example:
             out_xyz_dem, lats, lons, shape = downscaling.demGrid()
             out_xyz_sur = downscaling.surGrid(lats, lons, None)
-            pl_obs,pl_sur,t_sa = downscaling.interpAll(variable, ind_time, 
-                                                       out_xyz_sur, 
+            pl_obs,pl_sur,t_sa = downscaling.interpAll(variable, ind_time,
+                                                       out_xyz_sur,
                                                        out_xyz_dem)
 
 
         """
         gridT, gridZ, gridLat, gridLon = self.gridValue(variable, ind_time)
-        t_interp, z_interp = self.inLevelInterp(gridT, gridZ, gridLat, gridLon,
-                                                out_xyz_obs)
+        t_interp, z_interp = self.inLevelInterp(
+            gridT, gridZ, gridLat, gridLon, out_xyz_obs
+        )
         pl_sur = self.fast1d(t_interp, z_interp, out_xyz_sur)
         pl_obs = self.fast1d(t_interp, z_interp, out_xyz_obs)
         t_sa = self.surTa(ind_time, out_xyz_sur)
-        dt = t_sa-pl_sur
+        dt = t_sa - pl_sur
 
         return pl_obs, dt
 
-    def spatial_pl_dt(self, variable, daterange, types='mean'):
-        """Return the MEAN upper-air temperature and 
+    def spatial_pl_dt(self, variable, daterange, types="mean"):
+        """Return the MEAN upper-air temperature and
         land surface influence during given date range and at given  area
 
         Args:
@@ -1066,7 +1148,7 @@ class DownScaling(object):
         Returns:
             pl: Interpolated MEAN free-atmosphere during given date range and
             at given area.
-            dt: Interpolated MEAN surface level land surface influences during 
+            dt: Interpolated MEAN surface level land surface influences during
             given date range and at given area.
 
         Example:
@@ -1084,13 +1166,15 @@ class DownScaling(object):
         """
 
         # obtain time range
-        date_vec = nc.num2date(self.pl.variables['time'][:],
-                               units="seconds since 1970-1-1",
-                               calendar='standard')
+        date_vec = nc.num2date(
+            self.pl.variables["time"][:],
+            units="seconds since 1970-1-1",
+            calendar="standard",
+        )
 
         # index of time steps to interpolate
-        mask = date_vec >= daterange.get('beg')
-        mask *= date_vec <= daterange.get('end')
+        mask = date_vec >= daterange.get("beg")
+        mask *= date_vec <= daterange.get("end")
         ind_time_vec = np.arange(len(mask))[mask]
         out_time = date_vec[mask]
 
@@ -1104,26 +1188,28 @@ class DownScaling(object):
 
         print("\nConducting downscaling now, have a cup of coffee please\n")
 
-        if types == 'mean':
+        if types == "mean":
             for ind_out, ind_time in enumerate(ind_time_vec):
                 print((out_time[ind_out]))
                 pl_obs, dt = self.interpAll(
-                    variable, ind_time, out_xyz_sur, out_xyz_dem)
+                    variable, ind_time, out_xyz_sur, out_xyz_dem
+                )
                 sum_pl_obs += pl_obs
                 sum_dt += dt
 
-            dt = sum_dt/out_time.size
-            pl = sum_pl_obs/out_time.size
+            dt = sum_dt / out_time.size
+            pl = sum_pl_obs / out_time.size
 
             dt = dt.reshape(shape)
             pl = pl.reshape(shape)
-        elif types == 'ts':
+        elif types == "ts":
             dt = []
             pl = []
             for ind_out, ind_time in enumerate(ind_time_vec):
                 print((out_time[ind_out]))
                 pl_obs, dt_ = self.interpAll(
-                    variable, ind_time, out_xyz_sur, out_xyz_dem)
+                    variable, ind_time, out_xyz_sur, out_xyz_dem
+                )
                 dt.append(dt_.reshape(shape))
                 pl.append(pl_obs.reshape(shape))
             dt = np.array(dt)
@@ -1141,7 +1227,7 @@ class DownScaling(object):
         Args:
             variable: Climated variable to interpolate
             daterange: Date range to interpolate
-            out_xyz_sur: Surface level sites to interpolate 
+            out_xyz_sur: Surface level sites to interpolate
             out_xyz_obs: Topography sites to interpolate
 
         Returns:
@@ -1155,48 +1241,51 @@ class DownScaling(object):
             out_xyz_dem, lats, lons, shape, names = downscaling.demGrid(stations)
             out_xyz_sur = downscaling.surGrid(lats, lons, site)
 
-            pl, dt, out_time, names = downscaling.stationTimeSeries(variable, 
-                                                                    daterange, 
+            pl, dt, out_time, names = downscaling.stationTimeSeries(variable,
+                                                                    daterange,
                                                                     out_xyz_sur,
                                                                     out_xyz_dem)
         """
 
         # obtain time range
-        date_vec = nc.num2date(self.pl.variables['time'][:],
-                               units="seconds since 1970-1-1",
-                               calendar='standard')
+        date_vec = nc.num2date(
+            self.pl.variables["time"][:],
+            units="seconds since 1970-1-1",
+            calendar="standard",
+        )
 
         # obtain station information
         out_xyz_dem, lats, lons, shape, names = self.demGrid(stations)
         out_xyz_sur = self.surGrid(lats, lons, stations)
 
         # index of time steps to interpolate
-        mask = date_vec >= daterange.get('beg')
-        mask *= date_vec <= daterange.get('end')
+        mask = date_vec >= daterange.get("beg")
+        mask *= date_vec <= daterange.get("end")
         ind_time_vec = np.arange(len(mask))[mask]
         out_time = date_vec[mask]
 
-        out_valu = np.zeros((2, ind_time_vec.size,
-                             out_xyz_dem.shape[0]))  # pl_obs, dt
+        out_valu = np.zeros((2, ind_time_vec.size, out_xyz_dem.shape[0]))  # pl_obs, dt
 
         print("\nConducting downscaling now, have a cup of coffee please\n")
 
         for ind_out, ind_time in enumerate(ind_time_vec):
             print((out_time[ind_out]))
-            out_valu[:, ind_out, :] = self.interpAll(variable, ind_time,
-                                                     out_xyz_sur, out_xyz_dem)
+            out_valu[:, ind_out, :] = self.interpAll(
+                variable, ind_time, out_xyz_sur, out_xyz_dem
+            )
 
         return out_valu[0], out_valu[1], out_time, names
 
-    def extractStationAirTCSV(self, daterange, variable, stations,
-                              stat_out1, stat_out2):
+    def extractStationAirTCSV(
+        self, daterange, variable, stations, stat_out1, stat_out2
+    ):
         """
         Extracts time series from gridded data based on a list of dictionaries
         describing stations. Time serie(s) are written into csv files,
         variables are rounded to a precision of 3 decimal places.
 
         Args:
-            daterange: Date range to interpolate. Format of time range 
+            daterange: Date range to interpolate. Format of time range
                 desired (yy, mon, day, hh, min)
             variable: Climate variable to interpolate
             stations: Sites to interpolate. Format of stations desired
@@ -1205,9 +1294,9 @@ class DownScaling(object):
             stat_out1: station timeseries coarse land-surface effects output
                 file name
 
-        Returns: 
-            Returns a csv file contains time series downscaled surface air 
-            temperature and land surface influences (surface level) at given 
+        Returns:
+            Returns a csv file contains time series downscaled surface air
+            temperature and land surface influences (surface level) at given
             sites.
 
         Example:
@@ -1223,35 +1312,34 @@ class DownScaling(object):
             file_out = ['/Users/bincao/OneDrive/pl_obs.csv',
                         '/Users/bincao/OneDrive/dT.csv']
 
-            downscaling.extractStationDataCSV(daterange,variable,stations,file_out) 
+            downscaling.extractStationDataCSV(daterange,variable,stations,file_out)
         """
 
         # interpolate and extract values
 
-        values, time, names = self.stationTimeSeries(
-            variable, daterange, stations)
+        values, time, names = self.stationTimeSeries(variable, daterange, stations)
 
         # write CSV
         file_out = [stat_out1, stat_out2]
-        names.insert(0, 'Time_UTC')
+        names.insert(0, "Time_UTC")
         for i in range(2):
-            with open(file_out[i], 'w') as output_file:
+            with open(file_out[i], "w") as output_file:
                 writer = csv.writer(output_file)
                 writer.writerow(names)
                 valu = values[i].tolist()
                 for n in range(len(time)):
-                    row = ['%.3f' % elem for elem in valu[n]]
+                    row = ["%.3f" % elem for elem in valu[n]]
                     row.insert(0, time[n])
                     writer.writerow(row)
 
     def extractSpatialAirTNCF(self, daterange, variable, file_out):
         """
-        Extracts mean of given date range from gridded data based on a 
+        Extracts mean of given date range from gridded data based on a
         fine-scale DEM. Mean values are written into a netcdf file,
         variables are rounded to a precision of 3 decimal places.
 
         Args:
-            daterange: Date range to interpolate. Format of time range 
+            daterange: Date range to interpolate. Format of time range
                        desired (yy, mon, day, hh, min)
             variable: Climate variable to interpolate
             filout: Name of output netcdf file
@@ -1273,7 +1361,7 @@ class DownScaling(object):
 
             file_out  = '/Users/bincao/Desktop/subgrid.nc'
 
-            downscaling.extractSpatialDataNCF(daterange, variable, file_out) 
+            downscaling.extractSpatialDataNCF(daterange, variable, file_out)
         """
 
         # temperature and coarse land-surface effects
@@ -1281,19 +1369,21 @@ class DownScaling(object):
         shape = self.ele.shape
 
         # create nc file
-        nc_root = nc.Dataset(file_out, 'w', format='NETCDF4_CLASSIC')
+        nc_root = nc.Dataset(file_out, "w", format="NETCDF4_CLASSIC")
 
         # create dimensions
-        nc_root.createDimension('lat', shape[0])
-        nc_root.createDimension('lon', shape[1])
+        nc_root.createDimension("lat", shape[0])
+        nc_root.createDimension("lon", shape[1])
 
         # create variables
-        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
-        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
-        Ta = nc_root.createVariable('surface air temperature',
-                                    'f4', ('lat', 'lon'), zlib=True)
-        dT = nc_root.createVariable('coarse scale of land surface influence',
-                                    'f4', ('lat', 'lon'), zlib=True)
+        longitudes = nc_root.createVariable("lon", "f4", ("lon"))
+        latitudes = nc_root.createVariable("lat", "f4", ("lat"))
+        Ta = nc_root.createVariable(
+            "surface air temperature", "f4", ("lat", "lon"), zlib=True
+        )
+        dT = nc_root.createVariable(
+            "coarse scale of land surface influence", "f4", ("lat", "lon"), zlib=True
+        )
 
         # assign variables
         lons = self.lons
@@ -1304,32 +1394,34 @@ class DownScaling(object):
         dT[:] = dt
 
         # attribute
-        nc_root.description = "Downscaled upper-air temperature and "\
-                              "coarse-scale land surface influence with a"\
-                              "spatial resolution of input dem"
-        longitudes.units = 'degree_east (decimal)'
-        latitudes.units = 'degree_north (decimal)'
-        Ta.units = 'celsius'
-        dT.units = 'celsius'
+        nc_root.description = (
+            "Downscaled upper-air temperature and "
+            "coarse-scale land surface influence with a"
+            "spatial resolution of input dem"
+        )
+        longitudes.units = "degree_east (decimal)"
+        latitudes.units = "degree_north (decimal)"
+        Ta.units = "celsius"
+        dT.units = "celsius"
 
         nc_root.close()
 
 
 class topography(object):
     """
-    Return object for topography that has methods for deriving topographic 
+    Return object for topography that has methods for deriving topographic
     factors based on DEM.
 
     (a) MRVBF:
-        Multiresolution index of valley bottom flatness (MRVBF) is derived by 
+        Multiresolution index of valley bottom flatness (MRVBF) is derived by
         Gallant and Dowling (2003), detailed could be found:
         http://onlinelibrary.wiley.com/doi/10.1029/2002WR001426/abstract
-        The first slope threshold is set to 50% so that the mrvbf is smoother 
+        The first slope threshold is set to 50% so that the mrvbf is smoother
         than original one and could represent the cold air pooling better.
     (b) Hypsometric Position:
         Hypsometric position is calculated as the radio of the number of cells
-        with higher elevation than given site to the total number cells in the 
-        surrounding region and ranges from 1 (deepest valley) to 0 
+        with higher elevation than given site to the total number cells in the
+        surrounding region and ranges from 1 (deepest valley) to 0
         (highest peak).
 
     Args:
@@ -1348,11 +1440,11 @@ class topography(object):
         self.resolution = demResolution  # units = degree
 
         ds_dem = xr.open_dataset(demFile)
-        self.ele = ds_dem['elevation'][0].values
-        self.lons = ds_dem['lon'].values
-        self.lats = ds_dem['lat'].values
+        self.ele = ds_dem["elevation"][0].values
+        self.lons = ds_dem["lon"].values
+        self.lats = ds_dem["lat"].values
         self.shape = [len(self.lats), len(self.lons)]
-        self.size = len(self.lons)*len(self.lats)
+        self.size = len(self.lons) * len(self.lats)
 
     def describe(self):
         """Returns summary information of DEM file
@@ -1364,11 +1456,13 @@ class topography(object):
         minlat = np.min(self.lats)
         maxlat = np.max(self.lats)
 
-        print('Ranges:  West: %s,  East: %s, South: %s, North: %s ' %
-              (minlon, maxlon, minlat, maxlat))
-        print('Resolution: ' + str(self.resolution))
-        print('Dem shape [Lat, Lon]: ' + str(self.shape))
-        print('Dem size:' + str(self.size))
+        print(
+            "Ranges:  West: %s,  East: %s, South: %s, North: %s "
+            % (minlon, maxlon, minlat, maxlat)
+        )
+        print("Resolution: " + str(self.resolution))
+        print("Dem shape [Lat, Lon]: " + str(self.shape))
+        print("Dem size:" + str(self.size))
 
     def pixelLength(self, lat, L=1):
         """Return the cellsize for L step in meter. The function
@@ -1384,43 +1478,49 @@ class topography(object):
             yi,xi = topo.pixelLength(topo.lat, L=3)
         """
 
-        y1 = self.resolution * np.pi*self.R/180  # lon
+        y1 = self.resolution * np.pi * self.R / 180  # lon
         x1 = [np.cos(radians(elem)) * y1 for elem in lat]  # lat at base scale
         if L <= 2:
             cellsize = 1
         else:
-            cellsize = 3**(L-2)
+            cellsize = 3 ** (L - 2)
         yL = y1 * cellsize
-        print(int((cellsize-1)/2), len(lat), cellsize)
-        xL = x1[int((cellsize-1)/2):len(lat):cellsize]
+        print(int((cellsize - 1) / 2), len(lat), cellsize)
+        xL = x1[int((cellsize - 1) / 2) : len(lat) : cellsize]
 
         # x1[np.arange((cellsize-1)/2,len(lat),cellsize)]
-        return [yL, [x*cellsize for x in xL]]
+        return [yL, [x * cellsize for x in xL]]
 
     def demSize(self):
         """Returns dem size in km"""
 
         yi = self.pixelLength(self.lats)[0]  # cell size in m
         # dem size [lat, lon] in km
-        size = [yi * dim/1000 for dim in self.shape]
+        size = [yi * dim / 1000 for dim in self.shape]
 
         return size
 
     def sizeCheck(self, threshold=0.8):
-        """Check weather input dem is big enough to simulate 
+        """Check weather input dem is big enough to simulate
         hypsometric position."""
 
         size = self.demSize()
         # valid percent (without edge effecet)
-        validPer = [(size[0]-30)/size[0], (size[1]-30)/size[1]]
+        validPer = [(size[0] - 30) / size[0], (size[1] - 30) / size[1]]
 
         if any([validPer[0] < threshold, validPer[1] < threshold]):
-            print(('Input DEM (width in ' +
-                   str(int(size[1])) + ' km, breadth in ' +
-                   str(int(size[0])) + ' km) ' +
-                   'is too small to meaningfully ' +
-                   'accommodate the 30 km neighbourhood. Only one value is used ' +
-                   'as elevation range for the entire DEM'))
+            print(
+                (
+                    "Input DEM (width in "
+                    + str(int(size[1]))
+                    + " km, breadth in "
+                    + str(int(size[0]))
+                    + " km) "
+                    + "is too small to meaningfully "
+                    + "accommodate the 30 km neighbourhood. Only one value is used "
+                    + "as elevation range for the entire DEM"
+                )
+            )
 
             return True
 
@@ -1439,9 +1539,9 @@ class topography(object):
 
         Returns:
             scaled value
-         """
+        """
 
-        return 1/(1 + (x/t)**p)
+        return 1 / (1 + (x / t) ** p)
 
     def smoothDEM(self, ele):
         """
@@ -1482,49 +1582,52 @@ class topography(object):
 
         """
 
-        scale = 3**(L-2)
-        latIndex = list(range(int((scale-1)/2), len(self.lats), scale))
-        lonIndex = list(range(int((scale-1)/2), len(self.lons), scale))
-        f = RegularGridInterpolator((self.lats[latIndex][::-1], self.lons[lonIndex]),
-                                    coarseValue[::-1, :], method='linear',
-                                    bounds_error=False, fill_value=None)
+        scale = 3 ** (L - 2)
+        latIndex = list(range(int((scale - 1) / 2), len(self.lats), scale))
+        lonIndex = list(range(int((scale - 1) / 2), len(self.lons), scale))
+        f = RegularGridInterpolator(
+            (self.lats[latIndex][::-1], self.lons[lonIndex]),
+            coarseValue[::-1, :],
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
+        )
 
         if out_xy is not None:
             return f(out_xy)
 
         elif self.size <= limitSize:
             lon, lat = np.meshgrid(self.lons, self.lats)
-            gridBase = np.array(
-                [lat.reshape(lat.size), lon.reshape(lon.size)]).T
+            gridBase = np.array([lat.reshape(lat.size), lon.reshape(lon.size)]).T
             fineValue = f(gridBase)
             return fineValue.reshape((len(self.lats), len(self.lons)))
         else:
             fineValue = np.zeros((len(self.lats), len(self.lons)))
-            chunkN = self.size/limitSize
-            latLegth = len(self.lats)/chunkN
+            chunkN = self.size / limitSize
+            latLegth = len(self.lats) / chunkN
 
-            for pieceN in range(0, chunkN-1):
-                startLat = latLegth*pieceN
-                endLat = latLegth*(pieceN+1)
+            for pieceN in range(0, chunkN - 1):
+                startLat = latLegth * pieceN
+                endLat = latLegth * (pieceN + 1)
                 lon, lat = np.meshgrid(self.lons, self.lats[startLat:endLat])
-                gridBase = np.array([lat.reshape(lat.size),
-                                     lon.reshape(lon.size)]).T
-                fineValue[startLat:endLat, :] = f(
-                    gridBase).reshape(latLegth, len(self.lons))
+                gridBase = np.array([lat.reshape(lat.size), lon.reshape(lon.size)]).T
+                fineValue[startLat:endLat, :] = f(gridBase).reshape(
+                    latLegth, len(self.lons)
+                )
 
-            lon, lat = np.meshgrid(self.lons, self.lats[latLegth*(chunkN-1):])
-            gridBase = np.array([lat.reshape(lat.size),
-                                 lon.reshape(lon.size)]).T
-            fineValue[latLegth*(chunkN-1):, :] = f(gridBase).reshape(
-                len(self.lats[latLegth*(chunkN-1):]), len(self.lons))
+            lon, lat = np.meshgrid(self.lons, self.lats[latLegth * (chunkN - 1) :])
+            gridBase = np.array([lat.reshape(lat.size), lon.reshape(lon.size)]).T
+            fineValue[latLegth * (chunkN - 1) :, :] = f(gridBase).reshape(
+                len(self.lats[latLegth * (chunkN - 1) :]), len(self.lons)
+            )
 
             return fineValue
 
-    def flatness(self, ele, Tf, out_xy=None,  L=1, Pf=4):
+    def flatness(self, ele, Tf, out_xy=None, L=1, Pf=4):
         """
-        Return flatness for step L, flatness is defined as the inversion of 
+        Return flatness for step L, flatness is defined as the inversion of
         slope and called by scale() function.
-        Slope is modeled by standard finite difference techniques, and 
+        Slope is modeled by standard finite difference techniques, and
         described as a percentage or 100 times the tangent of slope angle.
 
         The detailed describtion of calculating slope could be found:
@@ -1533,8 +1636,8 @@ class topography(object):
         Args:
             ele: array_like, input elevation
             Tf: threshold, transform slope to flatness by scale() function
-            out_xy: array_like, the interested sites. If not given (None), 
-                flatnessof all the DEM cells would be simulated. Default is 
+            out_xy: array_like, the interested sites. If not given (None),
+                flatnessof all the DEM cells would be simulated. Default is
                 None.
             L: interger, step number
             Pf: Shape parameter used to scale the value to range of 0-1.
@@ -1554,9 +1657,9 @@ class topography(object):
         # slope
         kernelLon = np.array([[1, 0, -1], [2, 0, -2], [1, 0, -1]])
         kernelLat = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
-        dLon = convolve(ele, kernelLon)*100/(8*xi[:, None])
-        dLat = convolve(ele, kernelLat)*100/(8*yi)
-        slope = np.sqrt(dLon**2+dLat**2)
+        dLon = convolve(ele, kernelLon) * 100 / (8 * xi[:, None])
+        dLat = convolve(ele, kernelLat) * 100 / (8 * yi)
+        slope = np.sqrt(dLon**2 + dLat**2)
         del dLon, dLat
 
         # slope to flatness
@@ -1567,8 +1670,11 @@ class topography(object):
             if out_xy is not None:
                 f = RegularGridInterpolator(
                     (self.lats[::-1], self.lons),
-                    flatness[::-1, :], method='linear',
-                    bounds_error=False, fill_value=None)
+                    flatness[::-1, :],
+                    method="linear",
+                    bounds_error=False,
+                    fill_value=None,
+                )
                 flatness = f(out_xy)
             return flatness
 
@@ -1579,12 +1685,12 @@ class topography(object):
     def __percentile(self, x):
         """Return the rank of the element in surrouding cells.
         The function is called by lowness function"""
-        return np.sum(x <= x[int((x.size-1)/2)])
+        return np.sum(x <= x[int((x.size - 1) / 2)])
 
     def lowness(self, ele, out_xy=None, L=1, Tl=0.4, Pl=3, lowRadius=13):
         """
-        Returns lowness for given sites, which is measured as the radio of 
-        number of points of lower elevation to the total number of points in 
+        Returns lowness for given sites, which is measured as the radio of
+        number of points of lower elevation to the total number of points in
         the surrounding region.
 
         Args:
@@ -1609,17 +1715,19 @@ class topography(object):
             L1 = topo.lowness(ele, out_xy=None, lowRadius=7)
         """
 
-        size = float(lowRadius)**2
-        pctl = generic_filter(ele, self.__percentile,
-                              size=lowRadius)
+        size = float(lowRadius) ** 2
+        pctl = generic_filter(ele, self.__percentile, size=lowRadius)
         pctl /= size
         lowness = self.scale(pctl, Tl, Pl)
         if L <= 2:
             if not (out_xy is None):
                 f = RegularGridInterpolator(
                     (self.lats[::-1], self.lons[:]),
-                    lowness[::-1, :], method='linear',
-                    bounds_error=False, fill_value=None)
+                    lowness[::-1, :],
+                    method="linear",
+                    bounds_error=False,
+                    fill_value=None,
+                )
                 lowness = f(out_xy)
             return lowness
         else:
@@ -1632,7 +1740,7 @@ class topography(object):
         from the first and second-scale steps.
 
         Args:
-            out_xy: Array-like, sites need to be simulated. If not 
+            out_xy: Array-like, sites need to be simulated. If not
             given (None), all the DEM cells will be simulated.
 
         Returns:
@@ -1649,17 +1757,17 @@ class topography(object):
         ele = self.ele
         F1 = self.flatness(ele, out_xy=out_xy, Tf=initTf)
         L1 = self.lowness(ele, out_xy=out_xy, lowRadius=7)
-        PVF1 = F1*L1
+        PVF1 = F1 * L1
         VF1 = 1 - self.scale(PVF1, 0.3, 4)
         # second step
-        F2 = self.flatness(ele, out_xy=out_xy, Tf=initTf/2)
+        F2 = self.flatness(ele, out_xy=out_xy, Tf=initTf / 2)
         L2 = self.lowness(ele, out_xy=out_xy, lowRadius=13)
-        PVF2 = F2*L2
+        PVF2 = F2 * L2
         VF2 = 1 - self.scale(PVF2, 0.3, 4)
         # mrvbf2
         w2 = 1 - self.scale(VF2, 0.4, 6.68)
-        MRVBF2 = w2*(1+VF2) + (1-w2)*VF1
-        CF2 = F1*F2
+        MRVBF2 = w2 * (1 + VF2) + (1 - w2) * VF1
+        CF2 = F1 * F2
 
         return MRVBF2, CF2
 
@@ -1668,7 +1776,7 @@ class topography(object):
         Returns smoothed mrvbf.
 
         Args:
-        out_xy: Array-like, sites need to be simulated. If not 
+        out_xy: Array-like, sites need to be simulated. If not
             given (None), all the DEM cells will be simulated.
         initTf: first slope threshold
 
@@ -1678,35 +1786,34 @@ class topography(object):
         mrvbf, cf = self.finestScale(initTf=initTf, out_xy=out_xy)
         # smoothed base resolution dem
         sdemL = self.smoothDEM(self.ele)
-        meanKernel = np.full((3, 3), 1.0/(3*3))
+        meanKernel = np.full((3, 3), 1.0 / (3 * 3))
         for L in range(3, 9):
             # break when step size is out boundery of image
-            scale = 3**(L-2)
-            if (scale > int(self.lats.size/4)
-                    or scale > int(self.lats.size/4)):
+            scale = 3 ** (L - 2)
+            if scale > int(self.lats.size / 4) or scale > int(self.lats.size / 4):
                 break
             # print L
             shape = sdemL.shape
-            Tf = initTf / (2**(L-1))
+            Tf = initTf / (2 ** (L - 1))
             # aggreate sdem for L step
-            sdemL = convolve(sdemL, meanKernel)[1:shape[0]:3, 1:shape[1]:3]
+            sdemL = convolve(sdemL, meanKernel)[1 : shape[0] : 3, 1 : shape[1] : 3]
 
             # MRVBF for L step
-            np.seterr(invalid='ignore')
+            np.seterr(invalid="ignore")
             FL = self.flatness(sdemL, Tf, out_xy=out_xy, L=L)
             LL = self.lowness(sdemL, out_xy=out_xy, L=L, lowRadius=13)
-            cf = cf*FL
-            PVFL = cf*LL
+            cf = cf * FL
+            PVFL = cf * LL
             VFL = 1 - self.scale(PVFL, 0.3, 4)
-            wL = 1 - self.scale(VFL, 0.4, np.log10((L-0.5)/0.1)/np.log10(1.5))
-            mrvbf = wL*(L-1+VFL) + (1-wL)*mrvbf
+            wL = 1 - self.scale(VFL, 0.4, np.log10((L - 0.5) / 0.1) / np.log10(1.5))
+            mrvbf = wL * (L - 1 + VFL) + (1 - wL) * mrvbf
 
         mrvbf /= 8
 
         return mrvbf
 
     def aggregation(self, dem, scaleFactor=3):
-        """"
+        """ "
         Return a aggregated DEM, in which the cell size is is increased by
         a factor of scaleFactor.
 
@@ -1725,10 +1832,11 @@ class topography(object):
         """
 
         shape = dem.shape
-        meanKernel = np.full((scaleFactor, scaleFactor),
-                             1.0/(scaleFactor*scaleFactor))
-        latIndex = list(range(int((scaleFactor-1)/2), shape[0], scaleFactor))
-        lonIndex = list(range(int((scaleFactor-1)/2), shape[1], scaleFactor))
+        meanKernel = np.full(
+            (scaleFactor, scaleFactor), 1.0 / (scaleFactor * scaleFactor)
+        )
+        latIndex = list(range(int((scaleFactor - 1) / 2), shape[0], scaleFactor))
+        lonIndex = list(range(int((scaleFactor - 1) / 2), shape[1], scaleFactor))
         aggDem = convolve(dem, meanKernel)[latIndex, :]
         aggDem = aggDem[:, lonIndex]
 
@@ -1738,10 +1846,10 @@ class topography(object):
         """
         Return the neighbouring elevation of givens site.
         Args:
-            centerSite: 
-                The center cell [lat, lon] of the surrounding 
+            centerSite:
+                The center cell [lat, lon] of the surrounding
                 area. All the cells with the distance <= size/2 will be clipped.
-            size: 
+            size:
                 Diameter of surrounding area in km.
 
         Returns:
@@ -1754,10 +1862,10 @@ class topography(object):
 
         # area radiaus
         yi = self.pixelLength(self.lats)[0]  # cell size in m
-        lowRadius = int(size*1000/(2*yi))  # radius in pixel
+        lowRadius = int(size * 1000 / (2 * yi))  # radius in pixel
         # nearest cell index
-        latPosition = np.abs(self.lats-centerSite[0]).argmin()
-        lonPosition = np.abs(self.lons-centerSite[1]).argmin()
+        latPosition = np.abs(self.lats - centerSite[0]).argmin()
+        lonPosition = np.abs(self.lons - centerSite[1]).argmin()
         # subset area corner index
         latli = latPosition - lowRadius  # bottom index
         latui = latPosition + lowRadius  # top index
@@ -1788,7 +1896,7 @@ class topography(object):
         lowness = []
         for i, site in enumerate(out_xy):
             ind_ele = self.aroundArea(site, size=bound)
-            pctl = np.sum(ind_ele >= out_xy[i, 2])/float(ind_ele.size)
+            pctl = np.sum(ind_ele >= out_xy[i, 2]) / float(ind_ele.size)
             lowness.append(pctl)
 
         return lowness
@@ -1809,18 +1917,20 @@ class topography(object):
         """
 
         yi = self.pixelLength(self.lats)[0]
-        lowRadius = int((bound*1000/yi))
-        pctl = generic_filter(self.ele,
-                              self.__percentile, size=lowRadius)
-        pctl = pctl/(float(lowRadius)**2)
-        lowness = 1-pctl
+        lowRadius = int((bound * 1000 / yi))
+        pctl = generic_filter(self.ele, self.__percentile, size=lowRadius)
+        pctl = pctl / (float(lowRadius) ** 2)
+        lowness = 1 - pctl
         del pctl
 
         if not (out_xy is None):
             lowInterp = RegularGridInterpolator(
                 (self.lats[::-1], self.lons),
-                lowness[::-1], method='linear',
-                bounds_error=False, fill_value=None)
+                lowness[::-1],
+                method="linear",
+                bounds_error=False,
+                fill_value=None,
+            )
             lowness = lowInterp(out_xy)
         return lowness
 
@@ -1840,41 +1950,41 @@ class topography(object):
         """
 
         yi = self.pixelLength(self.lats)[0]
-        scaleFactor = int(np.ceil(500//yi) // 2 * 2 + 1)
-        aggDem = self.aggregation(
-            self.ele, scaleFactor)
+        scaleFactor = int(np.ceil(500 // yi) // 2 * 2 + 1)
+        aggDem = self.aggregation(self.ele, scaleFactor)
 
         # lowness
         lowRadius = 61  # bound*1000/500
-        pctl = generic_filter(aggDem[0],
-                              self.__percentile,
-                              size=lowRadius)/(float(lowRadius)**2)
+        pctl = generic_filter(aggDem[0], self.__percentile, size=lowRadius) / (
+            float(lowRadius) ** 2
+        )
         lowness = 1 - pctl
 
         # refine
         lowInterp = RegularGridInterpolator(
             (self.lats[aggDem[1]][::-1], self.lons[aggDem[2]]),
-            lowness[::-1], method='linear',
-            bounds_error=False, fill_value=None)
+            lowness[::-1],
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
+        )
 
         if not (out_xy is None):
             lowness = lowInterp(out_xy)
 
         else:
             lon, lat = np.meshgrid(self.lons, self.lats)
-            gridBase = np.array([lat.reshape(lat.size),
-                                 lon.reshape(lon.size)]).T
-            lowness = lowInterp(gridBase).reshape(
-                (len(self.lats), len(self.lons)))
+            gridBase = np.array([lat.reshape(lat.size), lon.reshape(lon.size)]).T
+            lowness = lowInterp(gridBase).reshape((len(self.lats), len(self.lons)))
 
         return lowness  # ,pctl
 
     def eleRange(self, bound=30, out_xy=None):
         """
         Returns elevation range for each dem cell within a area.
-        If the input DEM is too small elevation range is condisered as 
+        If the input DEM is too small elevation range is condisered as
         a constant value, which is derived from the center 30 km × 30 km area,
-        for the entire DEM. Otherwise, elevation range is derived from the 
+        for the entire DEM. Otherwise, elevation range is derived from the
         neighbourhood 30 km area.
 
         Args:
@@ -1889,8 +1999,8 @@ class topography(object):
         """
 
         if self.sizeCheck():
-            centerlat = self.lats[len(self.lats)/2]
-            centerlon = self.lons[len(self.lons)/2]
+            centerlat = self.lats[len(self.lats) / 2]
+            centerlon = self.lons[len(self.lons) / 2]
             subEle = self.aroundArea([centerlat, centerlon])
 
             rangeCon = np.max(subEle) - np.min(subEle)
@@ -1898,12 +2008,11 @@ class topography(object):
             if not (out_xy is None):
                 rangeE = np.repeat(rangeCon, len(out_xy))
             else:
-                rangeE = np.ones(self.shape)*rangeCon
+                rangeE = np.ones(self.shape) * rangeCon
 
         else:
-            lowRadius = bound*1000/(self.pixelLength(self.lats)[0])
-            dem = gaussian_filter(
-                self.ele, np.sqrt(4.5))
+            lowRadius = bound * 1000 / (self.pixelLength(self.lats)[0])
+            dem = gaussian_filter(self.ele, np.sqrt(4.5))
             minEle = minimum_filter(dem, size=lowRadius)
             maxEle = maximum_filter(dem, size=lowRadius)
             rangeE = maxEle - minEle
@@ -1911,8 +2020,11 @@ class topography(object):
             if not (out_xy is None):
                 rangeInterp = RegularGridInterpolator(
                     (self.lats[::-1], self.lons),
-                    rangeE[::-1], method='linear',
-                    bounds_error=False, fill_value=None)
+                    rangeE[::-1],
+                    method="linear",
+                    bounds_error=False,
+                    fill_value=None,
+                )
                 rangeE = rangeInterp(out_xy)
 
         return rangeE
@@ -1951,25 +2063,25 @@ class landSurCorrectionFac(object):
         self.resolution = demResolution
 
         ds_dem = xr.open_dataset(dem)
-        self.lats = ds_dem['lat'].values
-        self.lons = ds_dem['lon'].values
+        self.lats = ds_dem["lat"].values
+        self.lons = ds_dem["lon"].values
 
     def scale(self, eleRange):
 
-        return(np.exp(-eleRange/self.gamma))
+        return np.exp(-eleRange / self.gamma)
 
     def LSCF(self, hypso, mrvbf, eleR):
         """Returns land surface correction factor"""
         s = self.scale(eleR)
         h = hypso * (1 - s) + s
-        v = mrvbf*(1-s)
+        v = mrvbf * (1 - s)
 
-        lscf = self.alpha*h + self.beta*v
+        lscf = self.alpha * h + self.beta * v
 
         return lscf
 
     def spatialLSCF(self, file_out):
-        """"Returns and export spatialized land surface correction"""
+        """ "Returns and export spatialized land surface correction"""
 
         topo = topography(self.dem, self.resolution)
         mrvbf = topo.nmrvbf(out_xy=None, initTf=50.0)
@@ -1979,31 +2091,28 @@ class landSurCorrectionFac(object):
 
         # ---- export geomorphometric factors ---------------------------------
         # create nc file
-        nc_root = nc.Dataset(file_out, 'w', format='NETCDF4_CLASSIC')
+        nc_root = nc.Dataset(file_out, "w", format="NETCDF4_CLASSIC")
 
         # create dimensions
-        nc_root.createDimension('lat', mrvbf.shape[0])
-        nc_root.createDimension('lon', mrvbf.shape[1])
+        nc_root.createDimension("lat", mrvbf.shape[0])
+        nc_root.createDimension("lon", mrvbf.shape[1])
 
         # create variables
-        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
-        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
-        Hypso = nc_root.createVariable(
-            'hypso', 'f4', ('lat', 'lon'), zlib=True)
-        Mrvbf = nc_root.createVariable(
-            'mrvbf', 'f4', ('lat', 'lon'), zlib=True)
-        RangeE = nc_root.createVariable(
-            'eleRange', 'f4', ('lat', 'lon'), zlib=True)
-        Lscf = nc_root.createVariable('lscf', 'f4', ('lat', 'lon'), zlib=True)
+        longitudes = nc_root.createVariable("lon", "f4", ("lon"))
+        latitudes = nc_root.createVariable("lat", "f4", ("lat"))
+        Hypso = nc_root.createVariable("hypso", "f4", ("lat", "lon"), zlib=True)
+        Mrvbf = nc_root.createVariable("mrvbf", "f4", ("lat", "lon"), zlib=True)
+        RangeE = nc_root.createVariable("eleRange", "f4", ("lat", "lon"), zlib=True)
+        Lscf = nc_root.createVariable("lscf", "f4", ("lat", "lon"), zlib=True)
 
-        longitudes.setncatts({'long_name': "longitude"})
-        latitudes.setncatts({'long_name': "latitude"})
-        Mrvbf.setncatts({'long_name':
-                         "normalized multiresolution index of valley bottom flatness"})
-        Hypso.setncatts({'long_name': "hyposmetric position"})
-        RangeE.setncatts(
-            {'long_name': "elevation range in prescirbed neighbourhood"})
-        Lscf.setncatts({'long_name': "Land surface correction factor"})
+        longitudes.setncatts({"long_name": "longitude"})
+        latitudes.setncatts({"long_name": "latitude"})
+        Mrvbf.setncatts(
+            {"long_name": "normalized multiresolution index of valley bottom flatness"}
+        )
+        Hypso.setncatts({"long_name": "hyposmetric position"})
+        RangeE.setncatts({"long_name": "elevation range in prescirbed neighbourhood"})
+        Lscf.setncatts({"long_name": "Land surface correction factor"})
 
         # assign variables
         longitudes[:] = self.lons
@@ -2015,8 +2124,8 @@ class landSurCorrectionFac(object):
 
         # attribute
         nc_root.description = "fine-scale DEM-derived topographic factors"
-        longitudes.units = 'degree_east (demical)'
-        latitudes.units = 'degree_north (demical)'
+        longitudes.units = "degree_east (demical)"
+        latitudes.units = "degree_north (demical)"
 
         nc_root.close()
 
@@ -2024,8 +2133,7 @@ class landSurCorrectionFac(object):
 
     def stationLSCF(self, stations, file_out):
         """Returns station land surface correction factor"""
-        out_xyz = np.asarray([[s['lat'], s['lon'], s['ele']]
-                             for s in stations])
+        out_xyz = np.asarray([[s["lat"], s["lon"], s["ele"]] for s in stations])
 
         topo = topography(self.dem, self.resolution)
         mrvbf = topo.nmrvbf(out_xy=out_xyz[:, :2], initTf=50.0)
@@ -2034,10 +2142,10 @@ class landSurCorrectionFac(object):
 
         lscf = self.LSCF(hypso, mrvbf, eleR)
 
-        names = [s['name']for s in stations]
-        with open(file_out, 'w') as f:
+        names = [s["name"] for s in stations]
+        with open(file_out, "w") as f:
             writer = csv.writer(f)
-            writer.writerow(['station', 'hypso', 'mrvbf', 'eleRange', 'LSCF'])
+            writer.writerow(["station", "hypso", "mrvbf", "eleRange", "LSCF"])
 
             values = np.asarray([names, mrvbf, hypso, eleR, lscf]).T
 
@@ -2049,11 +2157,11 @@ class landSurCorrectionFac(object):
 
 class redcappTemp(object):
     """returns REDCAPP derived surface air temperature for both
-    given dem area (spatialized mean air temperature) and 
+    given dem area (spatialized mean air temperature) and
     stations (air temperature time series)
 
     Args:
-        geop: geopotential file, considered as coarese scale of 
+        geop: geopotential file, considered as coarese scale of
             topography.
         sa: surface air temperature from renalysis
         pl: pressure level temperature from renalysis
@@ -2064,7 +2172,7 @@ class redcappTemp(object):
 
     Returns:
         returns (1) spatalized mean air temperature in netcdf format, if input
-        dem file; (2) air temperature time series in csv format, if input 
+        dem file; (2) air temperature time series in csv format, if input
         station information
 
     Examples:
@@ -2091,12 +2199,11 @@ class redcappTemp(object):
 
     """
 
-    def __init__(self, geop, sa, pl, daterange, dem,
-                 alpha=0.61, beta=1.56, gamma=465):
+    def __init__(self, geop, sa, pl, daterange, dem, alpha=0.61, beta=1.56, gamma=465):
         self.geop = geop
         self.sa = sa
         self.pl = pl
-        self.variable = 'Temperature'
+        self.variable = "Temperature"
         self.daterange = daterange
         self.dem = dem
         self.alpha = alpha
@@ -2104,11 +2211,11 @@ class redcappTemp(object):
         self.gamma = gamma
 
         ds_dem = xr.open_dataset(dem)
-        tf = ds_dem['spatial_ref'].attrs['GeoTransform']
+        tf = ds_dem["spatial_ref"].attrs["GeoTransform"]
 
         self.resolution = float(tf.split()[1])
-        self.lats = ds_dem['lat'].values
-        self.lons = ds_dem['lon'].values
+        self.lats = ds_dem["lat"].values
+        self.lons = ds_dem["lon"].values
 
     def edgeClip(self, values):
         """
@@ -2120,22 +2227,20 @@ class redcappTemp(object):
         # the corner with values
         shape = values.shape
         if len(shape) == 2:
-            center = [int(i/2) for i in shape]
+            center = [int(i / 2) for i in shape]
             value_mean = values
         elif len(shape) == 3:
-            center = [int(i/2) for i in shape[1:]]
+            center = [int(i / 2) for i in shape[1:]]
             value_mean = np.nanmean(values, axis=0)
         else:
-            raise ValueError('Only 2D or 3D arrays are supported.')
+            raise ValueError("Only 2D or 3D arrays are supported.")
 
         if np.isnan(value_mean).sum() > 0:
             left = np.min(np.where(np.isnan(value_mean[center[0], :])))  # left
-            right = np.max(np.where(np.isnan(
-                value_mean[center[0], :])))+1  # right
+            right = np.max(np.where(np.isnan(value_mean[center[0], :]))) + 1  # right
 
-            upper = np.min(np.where(np.isnan(
-                value_mean[:, center[1]])))  # upper
-            low = np.max(np.where(np.isnan(value_mean[:, center[1]])))+1  # low
+            upper = np.min(np.where(np.isnan(value_mean[:, center[1]])))  # upper
+            low = np.max(np.where(np.isnan(value_mean[:, center[1]]))) + 1  # low
 
             values = values[upper:low, left:right]
             lons = lons[left:right]
@@ -2143,7 +2248,7 @@ class redcappTemp(object):
 
         return values, lons, lats
 
-    def spatialTemp(self, topo_out, types='mean'):
+    def spatialTemp(self, topo_out, types="mean"):
         """Returns spatialized mean air temperature."""
         # lscf
         print("Conducting terrain analysis...")
@@ -2155,10 +2260,11 @@ class redcappTemp(object):
         downscaling = DownScaling(self.geop, self.sa, self.pl, self.dem)
 
         pl, dt, out_time = downscaling.spatial_pl_dt(
-            self.variable, self.daterange, types=types)
+            self.variable, self.daterange, types=types
+        )
 
         # redcapp temperaure
-        temp = pl+lscf*dt
+        temp = pl + lscf * dt
 
         # TODO: remove clip
         temp, lons, lats = self.edgeClip(temp)
@@ -2172,7 +2278,8 @@ class redcappTemp(object):
         downscaling = DownScaling(self.geop, self.sa, self.pl)
 
         pl, dt, time, names = downscaling.stationTimeSeries(
-            self.variable, self.daterange, stations)
+            self.variable, self.daterange, stations
+        )
 
         # lscf
         print("Temperature Done!")
@@ -2187,31 +2294,32 @@ class redcappTemp(object):
             pli = pl[:, i]
             dti = pl[:, i]
             lscfi = lscf[i]
-            temp[:, i] = pli + lscfi*dti
+            temp[:, i] = pli + lscfi * dti
 
         return temp, time, names
 
     def extractSpatialDataNCF(self, topo_out, temp_out):
-        """"Export spatialized mean air temperature of given dem
-        in netcdf format. Please not that the area of output spatial 
-        temperature will be smaller than the given dem owing to the 
-        mrvbf simulation donot include the edge. Plsease also see the 
+        """ "Export spatialized mean air temperature of given dem
+        in netcdf format. Please not that the area of output spatial
+        temperature will be smaller than the given dem owing to the
+        mrvbf simulation donot include the edge. Plsease also see the
         introduction of clipEdge() fucntion"""
 
         temp, lons, lats, _ = self.spatialTemp(topo_out)
 
         # create nc file
-        nc_root = nc.Dataset(temp_out, 'w', format='NETCDF4_CLASSIC')
+        nc_root = nc.Dataset(temp_out, "w", format="NETCDF4_CLASSIC")
 
         # create dimensions
-        nc_root.createDimension('lat', len(lats))
-        nc_root.createDimension('lon', len(lons))
+        nc_root.createDimension("lat", len(lats))
+        nc_root.createDimension("lon", len(lons))
 
         # create variables
-        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
-        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
-        Ta = nc_root.createVariable('surface air temperature',
-                                    'f4', ('lat', 'lon'), zlib=True)
+        longitudes = nc_root.createVariable("lon", "f4", ("lon"))
+        latitudes = nc_root.createVariable("lat", "f4", ("lat"))
+        Ta = nc_root.createVariable(
+            "surface air temperature", "f4", ("lat", "lon"), zlib=True
+        )
 
         # assign variables
         longitudes[:] = lons
@@ -2220,76 +2328,79 @@ class redcappTemp(object):
 
         # attribute
         nc_root.description = "REDCAPP-derived surface air temperature"
-        longitudes.units = 'degree_east (decimal)'
-        latitudes.units = 'degree_north (decimal)'
-        Ta.units = 'celsius'
+        longitudes.units = "degree_east (decimal)"
+        latitudes.units = "degree_north (decimal)"
+        Ta.units = "celsius"
 
         nc_root.close()
 
     def extractSpatialDataNCF_TS(self, topo_out, temp_out):
-        """"Export spatialized air temperatures of given dem
-        resolution and given time-series in netcdf format. 
-        Please not that the area of output spatial temperature 
-        may be smaller than the given dem owing to the 
-        mrvbf simulation donot include the edge. Plsease also see the 
+        """ "Export spatialized air temperatures of given dem
+        resolution and given time-series in netcdf format.
+        Please not that the area of output spatial temperature
+        may be smaller than the given dem owing to the
+        mrvbf simulation donot include the edge. Plsease also see the
         introduction of clipEdge() fucntion"""
 
-        temp, lons, lats, times = self.spatialTemp(topo_out, types='ts')
+        temp, lons, lats, times = self.spatialTemp(topo_out, types="ts")
 
         # create nc file
-        nc_root = nc.Dataset(temp_out, 'w', format='NETCDF4_CLASSIC')
+        nc_root = nc.Dataset(temp_out, "w", format="NETCDF4_CLASSIC")
 
         # create dimensions
-        nc_root.createDimension('time', len(times))
-        nc_root.createDimension('lat', len(lats))
-        nc_root.createDimension('lon', len(lons))
+        nc_root.createDimension("time", len(times))
+        nc_root.createDimension("lat", len(lats))
+        nc_root.createDimension("lon", len(lons))
 
         # create variables
-        longitudes = nc_root.createVariable('lon', 'f4', ('lon'))
-        latitudes = nc_root.createVariable('lat', 'f4', ('lat'))
-        time = nc_root.createVariable('time', 'd', ('time'))
-        Ta = nc_root.createVariable('surface air temperature',
-                                    'f4', ('time', 'lat', 'lon'), zlib=True)
+        longitudes = nc_root.createVariable("lon", "f4", ("lon"))
+        latitudes = nc_root.createVariable("lat", "f4", ("lat"))
+        time = nc_root.createVariable("time", "d", ("time"))
+        Ta = nc_root.createVariable(
+            "surface air temperature", "f4", ("time", "lat", "lon"), zlib=True
+        )
 
         # assign variables
         longitudes[:] = lons
         latitudes[:] = lats
         Ta[:] = temp
-        time[:] = nc.date2num(times,
-                              units="seconds since 1970-1-1",
-                              calendar='standard')
+        time[:] = nc.date2num(
+            times,
+            units="seconds since 1970-1-1",
+            calendar="standard",
+        )
 
         # attribute
         nc_root.description = "REDCAPP-derived surface air temperature"
-        longitudes.units = 'degree_east (decimal)'
-        latitudes.units = 'degree_north (decimal)'
-        Ta.units = 'celsius'
+        longitudes.units = "degree_east (decimal)"
+        latitudes.units = "degree_north (decimal)"
+        Ta.units = "celsius"
         time.units = "seconds since 1970-1-1"
-        time.calendar = 'standard'
+        time.calendar = "standard"
 
         nc_root.close()
 
     def extractStationDataCSV(self, stations, topo_out, temp_out):
         """
-        Exports air temperature time series of the given stations 
+        Exports air temperature time series of the given stations
         in csv format
         """
 
         temp, time, names = self.stationTemp(stations, topo_out)
 
         # write CSV
-        names.insert(0, 'Time_UTC')
-        with open(temp_out, 'w') as output_file:
+        names.insert(0, "Time_UTC")
+        with open(temp_out, "w") as output_file:
             writer = csv.writer(output_file)
             writer.writerow(names)
             valu = temp.tolist()
             for n in range(len(time)):
-                row = ['%.3f' % elem for elem in valu[n]]
+                row = ["%.3f" % elem for elem in valu[n]]
                 row.insert(0, time[n])
                 writer.writerow(row)
 
 
-def raster2nc(raster_file, nc_file, crs='WGS84'):
+def raster2nc(raster_file, nc_file, crs="WGS84", overwrite=False):
     """convert input raster to netcdf file
 
     Parameters:
@@ -2315,16 +2426,21 @@ def raster2nc(raster_file, nc_file, crs='WGS84'):
         raster2nc(dem_file, dem_out)
 
     """
+    if path.exists(nc_file):
+        if overwrite:
+            remove(nc_file)
+        else:
+            print(f"{nc_file} already exists. Skip the conversion..")
+            return
+
     da = rioxarray.open_rasterio(raster_file)
     da = da.rio.reproject(crs)
 
-    name_map = {'x': 'lon', 'y': 'lat'}
+    name_map = {"x": "lon", "y": "lat"}
     da = da.rename(name_map)
-    ds = xr.Dataset({'elevation': da})
+    ds = xr.Dataset({"elevation": da})
     ds["elevation"].rio.set_spatial_dims("lon", "lat", inplace=True)
     ds["elevation"].rio.write_crs(crs, inplace=True)
-    if path.exists(nc_file):
-        remove(nc_file)
 
     ds.to_netcdf(nc_file)
     da.close()
@@ -2333,9 +2449,11 @@ def raster2nc(raster_file, nc_file, crs='WGS84'):
 
 def get_area_from_DEM(dem_file, buffer=0.7):
     da = rioxarray.open_rasterio(dem_file)
-    area = {'north': float(da.y.max()) + buffer,
-            'south': float(da.y.min()) - buffer,
-            'west': float(da.x.min()) - buffer,
-            'east': float(da.x.max()) + buffer}
+    area = {
+        "north": float(da.y.max()) + buffer,
+        "south": float(da.y.min()) - buffer,
+        "west": float(da.x.min()) - buffer,
+        "east": float(da.x.max()) + buffer,
+    }
     da.close()
     return area

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from tkinter.messagebox import NO
 
@@ -8,26 +10,39 @@ import xarray as xr
 
 
 class ERA5_Manager(object):
-    def __init__(self, folder=None, result_dir="result"):
-        """
+    def __init__(
+        self,
+        home_dir: Path | str | None = None,
+        overwrite: bool = False,
+    ):
+        """Initialize the ERA5_Manager object
 
-        Parameters:
-        -----------
-        folder : str or pathlib.Path object
-            folder to save data
-        result : str
-            result folder. Could be an absolute path or just a name
+        Parameters
+        ----------
+        home_dir : str or pathlib.Path object
+            home_dir to save data. Default None, which means the current working
+            directory will be used.
+        overwrite : bool
+            whether to overwrite the existing file. Default False
         """
         self.client = cdsapi.Client()
-        if folder is None:
-            self.folder = Path.cwd()
+        self.overwrite = overwrite
+        if home_dir is None:
+            self.home_dir = Path.cwd()
         else:
-            self.folder = Path(folder)
+            self.home_dir = Path(home_dir)
 
-        if Path(result_dir).is_absolute():
-            self.result_dir = Path(result_dir)
-        else:
-            self.result_dir = self.folder / result_dir
+        self.data_dir = self.home_dir / "data"
+        self.merge_dir = self.data_dir / "merge"
+        self._geop = self.data_dir / "surface_geopotential.nc"
+
+        ensure_dir(self.data_dir)
+        ensure_dir(self.merge_dir)
+
+    @property
+    def geop(self):
+        """return the path of surface geopotential file"""
+        return self._geop
 
     def generate_datetime(
         self, start=None, end=None, periods=None, freq=None, time=None
@@ -158,9 +173,9 @@ class ERA5_Manager(object):
         pressure_levels = [i for i in all_pressure_levels if min <= int(i) <= max]
         return pressure_levels
 
-    def _split_requests(self, year, month, day, time, num_item):
+    def _split_requests(self, year, month, day, time, num_item, num_t=60000):
         """split requests into multipart to make it's number meet the
-        CDS api requirements (<120000)
+        CDS api requirements (<60000)
         """
         num_y = len(year)
         num_m = len(month)
@@ -168,13 +183,13 @@ class ERA5_Manager(object):
         num_t = len(time)
 
         num_one_month = num_item * num_t * num_d
-        # all year small than 12000
-        if num_one_month * num_m * num_y < 120000:
+        # all year small than 60000
+        if num_one_month * num_m * num_y < num_t:
             return [(year, month, day)]
-        # one year small than 12000
-        elif num_one_month * num_m < 120000:
+        # one year small than 60000
+        elif num_one_month * num_m < num_t:
             return [([y], month, day) for y in year]
-        # one month (max items for 2 variables in one month is 55056 < 120000)
+        # one month (max items for 2 variables in one month is 55056 < 60000)
         else:
             ymd_list = []
             for y in year:
@@ -202,16 +217,16 @@ class ERA5_Manager(object):
             file_name = (
                 f"{name}_{year[0]}{month[0]}{day[0]}-{year[-1]}{month[-1]}{day[-1]}.nc"
             )
-            target = self.folder / file_name
-            if target.is_file():
+            target = self.data_dir / file_name
+            if target.is_file() and not self.overwrite:
                 print(f"File {target} has been downloaded, Skipping...")
                 continue
             else:
                 self.client.retrieve(name, request_info, target)
 
     def _retrieve_single_date(self, name, request_info, file_name):
-        target = self.folder / file_name
-        if target.is_file():
+        target = self.data_dir / file_name
+        if target.is_file() and not self.overwrite:
             print(f"File {target} has been downloaded, Skipping...")
         else:
             self.client.retrieve(name, request_info, target)
@@ -247,7 +262,7 @@ class ERA5_Manager(object):
             "time": ["12:00"],
             "area": area,
         }
-        self.geop = self.folder / "surface_geopotential.nc"
+
         self._retrieve_single_date(name, request_info, self.geop)
 
         # 2m_temperature
@@ -294,31 +309,37 @@ class ERA5_Manager(object):
             The path to the nc file that needs to be formatted.
         file_out: str or pathlib.Path object
             The path to the nc file that has been formatted.
-            if file_out is None, will save is to result folder
+            if file_out is None, will save is to result merge_dir
             with the same name with file_in
 
         Returns:
         --------
         path of output file
         """
+        if file_out is None:
+            file_out = self.merge_dir / Path(file_in).name
+
+        if file_out.exists() and not self.overwrite:
+            print(f"Files have already been formatted to {file_out}, Skipping...")
+            return None
+
+        ensure_file(file_out)
+
         ds = xr.open_dataset(file_in)
         ds = self._format_dataset(ds)
 
-        if file_out is None:
-            file_out = self.result_dir / Path(file_in).name
         encode = {}
         if "time" in ds:
             encode = {
                 "time": {"units": "seconds since 1970-1-1", "calendar": "standard"}
             }
-        make_sure_folder(file_out.parent)
-        make_sure_file(file_out)
+        ensure_dir(file_out.parent)
 
         ds.to_netcdf(file_out, encoding=encode)
         ds.close()
         return file_out
 
-    def merge_nc(self, name, merged_file=None, day_mean=True, format=True):
+    def merge_nc(self, name, day_mean=True, format=True):
         """merge multiple nc files into one file
 
         Parameters:
@@ -326,9 +347,6 @@ class ERA5_Manager(object):
         name: str, one of ['pl', 'sl']
             which type of data to merge. 'pl' and 'sl' is short for 'reanalysis-era5-pressure-levels' and
             'reanalysis-era5-single-levels' product respectively.
-        merged_file: str or pathlib.Path object
-            the path to save merged file. could be absolute path
-            or just a name of file
         day_mean: bool
             where to get daily mean value after combine all data
         format: bool
@@ -343,7 +361,15 @@ class ERA5_Manager(object):
             "sl": "reanalysis-era5-single-levels",
         }
         pattern = f"{names_mapper[name]}*.nc"
-        files = list(self.folder.glob(pattern))
+
+        if (
+            len(merged_file := list(self.merge_dir.glob(pattern)))
+            and not self.overwrite
+        ):
+            print(f"Files have already been merged into {merged_file}, Skipping...")
+            return None
+
+        files = list(self.data_dir.glob(pattern))
         mfds = xr.open_mfdataset(files)
 
         if day_mean:
@@ -358,54 +384,43 @@ class ERA5_Manager(object):
                     "time": {"units": "seconds since 1970-1-1", "calendar": "standard"}
                 }
 
-        if merged_file is None:
-            dt_start = files[0].stem.split("_")[-1][:8]
-            dt_end = files[-1].stem.split("_")[-1][9:]
-            d_txt = "daily" if day_mean else ""
-            merged_file = f"result/{names_mapper[name]}_{dt_start}-{dt_end}_{d_txt}.nc"
-        if not Path(merged_file).is_absolute():
-            merged_file = self.folder / merged_file
+        dt_start = files[0].stem.split("_")[-1][:8]
+        dt_end = files[-1].stem.split("_")[-1][9:]
+        d_txt = "daily" if day_mean else ""
 
-        make_sure_folder(merged_file.parent)
-        make_sure_file(merged_file)
+        merged_file = (
+            self.merge_dir / f"{names_mapper[name]}_{dt_start}-{dt_end}_{d_txt}.nc"
+        )
+        ensure_file(merged_file)
 
         mfds.to_netcdf(merged_file, encoding=encode)
         mfds.close()
         print(f"Merged files to file: {merged_file}")
 
-        return merged_file
-
     def get_pl(self, name=None):
-        if name is None:
-            path = list(self.result_dir.glob("reanalysis-era5-pressure-levels*.nc"))[0]
-        else:
-            path = self.result_dir / name
-
+        """return the path of merged pressure level file"""
+        path = list(self.merge_dir.glob("reanalysis-era5-pressure-levels*.nc"))[0]
         return path
 
-    def get_sa(self, name=None):
-        if name is None:
-            path = list(self.result_dir.glob("reanalysis-era5-single-levels*.nc"))[0]
-        else:
-            path = self.result_dir / name
-
+    def get_sa(self):
+        """return the path of merged single level file"""
+        path = list(self.merge_dir.glob("reanalysis-era5-single-levels*.nc"))[0]
         return path
 
-    def get_geop(self, name=None):
-        if name is None:
-            path = self.result_dir / "surface_geopotential.nc"
-        else:
-            path = self.result_dir / name
-
+    def get_geop(self):
+        """return the path of formatted surface geopotential file"""
+        path = self.merge_dir / "surface_geopotential.nc"
         return path
 
 
-def make_sure_folder(folder):
+def ensure_dir(folder: Path):
+    """create the folder if it does not exist."""
     if not folder.is_dir():
         folder.mkdir(parents=True)
 
 
-def make_sure_file(file):
+def ensure_file(file):
+    """delete the file if it exists."""
     if file.is_file():
         file.unlink()
 
