@@ -35,6 +35,7 @@
 # Check ECMWF job status: http://apps.ecmwf.int/webmars/joblist/
 #
 # ==============================================================================
+from __future__ import annotations
 
 import csv
 from bisect import bisect_left
@@ -43,6 +44,7 @@ from math import exp, floor, radians
 from operator import inv
 from os import path, remove
 from pathlib import Path
+from typing import Any, Literal
 
 import netCDF4 as nc
 import numpy as np
@@ -800,21 +802,29 @@ class DownScaling(object):
             self.lats = ds_dem["lat"].values
             self.ele = ds_dem["elevation"][0].values
 
-    def demGrid(self, stations=None):
+    def demGrid(self, stations: dict | None = None):
         """Return metadata of given stations or dem.
-        Format of stations desired [lat, lon, geop].
 
-        Args:
-            stations: A list of dictionaries describing stations. If not given,
-                metadata derived from given dem.
+        Parameters
+        ----------
+        stations : list of dictionaries, optional
+            A list of dictionaries describing stations, with keys ["lat", "lon",
+            "ele", "name"]. If not given, metadata derived from given dem.
+             Default is None.
 
-        Returns:
-            out_xyz_dem: Metadata [lat, lon, geop] of input dem or sites
-            lons: Longitude of input sites
-            lats: Latitude of input sites
-            shape: Shape of input dem or sites
-            names: Name of input stations. Names will only be avaiable when
-                stations are inputted
+        Returns
+        -------
+        out_xyz_dem: np.array
+            Metadata [lat, lon, geop] of input dem or sites
+        lons: np.array
+            Longitude of input sites
+        lats: np.array
+            Latitude of input sites
+        shape: tuple
+            Shape of input dem or sites
+        names: list
+            Name of input stations. Names will only be avaiable when stations
+            are inputted
         """
 
         if not (stations is None):
@@ -860,25 +870,31 @@ class DownScaling(object):
         return out_xyz_ori
 
     def surGrid(self, lats, lons, stations):
-        """
-        Return interpolated surface geopotetial.
+        """Return interpolated surface geopotetial.
 
-        Args:
-            lats: Latitude of intersted sites
-            lons: Longitude of intersted sites
-            stations: A list of dictionaries describing stations. If not given,
-                metadata derived from given dem.
+        Parameters
+        ----------
+        lats : np.array
+            Latitude of intersted sites
+        lons : np.array
+            Longitude of intersted sites
+        stations : list of dictionaries
+            A list of dictionaries describing stations. If not given, metadata
+            derived from given dem.
 
-        Returns:
-            out_xyz_sur: Fine-scale surface level metadata [lat, lon, geop],
-            where latitude and lontitude are ontained from dem,
-            while geop is interpolated from coarse geopotential file
+        Returns
+        -------
+        out_xyz_sur: np.array
+            Fine-scale surface level metadata [lat, lon, geop], where latitude
+            and lontitude are ontained from dem, while geop is interpolated
+            from coarse geopotential file
 
-        Example:
-            downscaling = DownScaling(dem, geop, sa, pl)
-            out_xyz_dem, lats, lons, shape = downscaling.demGrid()
-            out_xyz_ori = downscaling.geoGrid()
-            out_xyz_sur = downscaling.surGrid(lats, lons, out_xyz_dem[:,:2])
+        Example
+        -------
+        >>> downscaling = DownScaling(dem, geop, sa, pl)
+        >>> out_xyz_dem, lats, lons, shape = downscaling.demGrid()
+        >>> out_xyz_ori = downscaling.geoGrid()
+        >>> out_xyz_sur = downscaling.surGrid(lats, lons, out_xyz_dem[:,:2])
         """
 
         longitude = self.geop["lon"][:]
@@ -1101,30 +1117,33 @@ class DownScaling(object):
     def interpAll(self, variable, ind_time, out_xyz_sur, out_xyz_obs):
         """Returns all needed interpolated temperatures at given time.
 
-        Args:
-            variable: Interpolated climated variable
-            ind_time: Time need to be interpolated. Time is in interger (e.g.
-            0, 1, 2)
-            out_xyz_sur: Interploated sites[lat, lon, geop], in which the
-            geopotential are interpolated from ERA-Interim geopotential file.
-            out_xyz_obs: Interploated sites[lat, lon, geop], in which the
-            geopotential are gotten from DEM.
+        Parameters
+        ----------
+        variable: str
+            Interpolated climated variable
+        ind_time: int
+            Time need to be interpolated. Time is in interger (e.g. 0, 1, 2)
+        out_xyz_sur: np.array
+            Interploated sites[lat, lon, geop], in which the geopotential are
+            interpolated from ERA-Interim geopotential file.
+        out_xyz_obs: np.array
+            Interploated sites[lat, lon, geop], in which the geopotential are
+            gotten from DEM.
 
-        Returns:
-            pl_obs: Interpolated upper-air temperature at given sites
-                with dem level
-            pl_sur: Interpolated upper-air temperature at given sites
-                with surface level
+        Returns
+        -------
+        pl_obs: np.array
+            Interpolated upper-air temperature at given sites with dem level
+        pl_sur: np.array
+            Interpolated upper-air temperature at given sites with surface level
 
-
-        Example:
-            out_xyz_dem, lats, lons, shape = downscaling.demGrid()
-            out_xyz_sur = downscaling.surGrid(lats, lons, None)
-            pl_obs,pl_sur,t_sa = downscaling.interpAll(variable, ind_time,
-                                                       out_xyz_sur,
-                                                       out_xyz_dem)
-
-
+        Example
+        -------
+        >>> out_xyz_dem, lats, lons, shape = downscaling.demGrid()
+        >>> out_xyz_sur = downscaling.surGrid(lats, lons, None)
+        >>> pl_obs,pl_sur,t_sa = downscaling.interpAll(
+        >>>     variable, ind_time, out_xyz_sur, out_xyz_dem
+        >>> )
         """
         gridT, gridZ, gridLat, gridLon = self.gridValue(variable, ind_time)
         t_interp, z_interp = self.inLevelInterp(
@@ -1137,32 +1156,44 @@ class DownScaling(object):
 
         return pl_obs, dt
 
-    def spatial_pl_dt(self, variable, daterange, types="mean"):
-        """Return the MEAN upper-air temperature and
-        land surface influence during given date range and at given  area
+    def spatial_pl_dt(
+        self,
+        variable: str,
+        daterange: dict,
+        types: Literal["ts", "mean"] = "mean",
+    ):
+        """Return the MEAN upper-air temperature and land surface influence
+        during given date range and at given area
 
-        Args:
-            variable: Climated variable to interpolate
-            daterange: Date range to interpolate
+        Parameters
+        ----------
+        variable : str
+            Climated variable to interpolate
+        daterange : dict
+            Date range to interpolate with keys 'beg' and 'end'
+        types : Literal["ts", "mean"], optional
+            Type of output, by default "mean"
 
-        Returns:
-            pl: Interpolated MEAN free-atmosphere during given date range and
-            at given area.
-            dt: Interpolated MEAN surface level land surface influences during
-            given date range and at given area.
+        Returns
+        -------
+        pl: np.array
+            Interpolated MEAN free-atmosphere during given date range and at
+            given area.
+        dt: np.array
+            Interpolated MEAN surface level land surface influences during given
+            date range and at given area.
 
-        Example:
+        Example
+        -------
+        >>> dem  = 'example_alps.nc'
+        >>> geop = 'alps_geop.nc'
+        >>> sa   = 'alps_sa_79_15.nc'
 
-            dem  = 'example_alps.nc'
-            geop = 'alps_geop.nc'
-            sa   = 'alps_sa_79_15.nc'
+        >>> downscaling = DownScaling(dem, geop, sa, pl)
 
-            downscaling = DownScaling(dem, geop, sa, pl)
-
-            out_xyz_dem, lats, lons, shape = downscaling.demGrid()
-            out_xyz_sur = downscaling.surGrid(lats, lons, None)
-            pl,dt = downscaling.spatial_pl_dt(variable, daterange, types)
-
+        >>> out_xyz_dem, lats, lons, shape = downscaling.demGrid()
+        >>> out_xyz_sur = downscaling.surGrid(lats, lons, None)
+        >>> pl,dt = downscaling.spatial_pl_dt(variable, daterange, types)
         """
 
         # obtain time range
@@ -2080,8 +2111,8 @@ class landSurCorrectionFac(object):
 
         return lscf
 
-    def spatialLSCF(self, file_out):
-        """ "Returns and export spatialized land surface correction"""
+    def spatialLSCF(self, file_out: str | Path):
+        """Returns and export spatialized land surface correction"""
 
         topo = topography(self.dem, self.resolution)
         mrvbf = topo.nmrvbf(out_xy=None, initTf=50.0)
@@ -2161,8 +2192,7 @@ class redcappTemp(object):
     stations (air temperature time series)
 
     Args:
-        geop: geopotential file, considered as coarese scale of
-            topography.
+        geop: geopotential file, considered as coarese scale of topography.
         sa: surface air temperature from renalysis
         pl: pressure level temperature from renalysis
         variable: variables to conducted here. Variable of 'Temperature' is
@@ -2199,7 +2229,43 @@ class redcappTemp(object):
 
     """
 
-    def __init__(self, geop, sa, pl, daterange, dem, alpha=0.61, beta=1.56, gamma=465):
+    def __init__(
+        self,
+        geop,
+        sa,
+        pl,
+        daterange,
+        dem,
+        alpha=0.61,
+        beta=1.56,
+        gamma=465,
+        overwrite=False,
+    ):
+        """Initializes the class.
+
+        Parameters
+        ----------
+        geop : str
+            Geopotential file, considered as coarse scale of topography.
+        sa : str
+            File of surface air temperature from reanalysis.
+        pl : str
+            File of pressure level temperature from reanalysis.
+        daterange : dict
+            The date range to be downscaled.
+        dem : str
+            DEM file in netcdf format, considered as fine scale of topography.
+        alpha : float, optional
+            Adjust constant value. The default is 0.61.
+        beta : float, optional
+            A factor relating to fractional influence of surface effects on air
+            temperature. The default is 1.56.
+        gamma : int, optional
+            A factor relating to cold air pooling on air temperature. The default
+            is 465.
+        overwrite : bool, optional
+            Overwrite the existing file. The default is False.
+        """
         self.geop = geop
         self.sa = sa
         self.pl = pl
@@ -2209,6 +2275,7 @@ class redcappTemp(object):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
+        self.overwrite = overwrite
 
         ds_dem = xr.open_dataset(dem)
         tf = ds_dem["spatial_ref"].attrs["GeoTransform"]
@@ -2248,12 +2315,29 @@ class redcappTemp(object):
 
         return values, lons, lats
 
-    def spatialTemp(self, topo_out, types="mean"):
-        """Returns spatialized mean air temperature."""
+    def spatialTemp(
+        self,
+        topo_out: str | Path,
+        types: Literal["ts", "mean"] = "mean",
+    ):
+        """Returns spatialized mean air temperature.
+
+        Parameters
+        ----------
+        topo_out : str or pathlib.Path object
+            Output file of land surface correction factors in netcdf format.
+        types : Literal['mean', 'ts'], optional
+            The type of output temperature. 'mean' for mean temperature and 'ts'
+            for time-series temperature. The default is 'mean'.
+        """
         # lscf
         print("Conducting terrain analysis...")
-        LSCF = landSurCorrectionFac(self.dem, self.resolution)
-        lscf = LSCF.spatialLSCF(topo_out)
+        if Path(topo_out).exists() and not self.overwrite:
+            print("Find existing file! Reading...")
+            lscf = xr.load_dataset(topo_out)["lscf"].values
+        else:
+            LSCF = landSurCorrectionFac(self.dem, self.resolution)
+            lscf = LSCF.spatialLSCF(topo_out)
         print("Terrain analysis Done!")
 
         # upp-air temperature and coarse land-surface effects
@@ -2298,12 +2382,26 @@ class redcappTemp(object):
 
         return temp, time, names
 
-    def extractSpatialDataNCF(self, topo_out, temp_out):
-        """ "Export spatialized mean air temperature of given dem
-        in netcdf format. Please not that the area of output spatial
-        temperature will be smaller than the given dem owing to the
-        mrvbf simulation donot include the edge. Plsease also see the
-        introduction of clipEdge() fucntion"""
+    def extractSpatialDataNCF(
+        self,
+        topo_out: str | Path,
+        temp_out: str | Path,
+    ):
+        """Export spatialized mean air temperature of given dem in netcdf format.
+
+        .. note::
+            Please not that the area of output spatial temperature will be
+            smaller than the given dem owing to the mrvbf simulation donot
+            include the edge. Plsease also see the introduction of clipEdge()
+            fucntion
+
+        Parameters
+        ----------
+        topo_out : str or pathlib.Path object
+            Output file of land surface correction factors in netcdf format.
+        temp_out : str or pathlib.Path object
+            Output file of spatialized mean air temperature in netcdf format.
+        """
 
         temp, lons, lats, _ = self.spatialTemp(topo_out)
 
@@ -2334,13 +2432,27 @@ class redcappTemp(object):
 
         nc_root.close()
 
-    def extractSpatialDataNCF_TS(self, topo_out, temp_out):
-        """ "Export spatialized air temperatures of given dem
-        resolution and given time-series in netcdf format.
-        Please not that the area of output spatial temperature
-        may be smaller than the given dem owing to the
-        mrvbf simulation donot include the edge. Plsease also see the
-        introduction of clipEdge() fucntion"""
+    def extractSpatialDataNCF_TS(
+        self,
+        topo_out: str | Path,
+        temp_out: str | Path,
+    ):
+        """Export spatialized air temperatures of given dem resolution and given
+        time-series in netcdf format.
+
+        .. note::
+            Please note that the area of output spatial temperature may be
+            smaller than the given dem owing to the mrvbf simulation donot
+            include the edge. Plsease also see the introduction of clipEdge()
+            fucntion
+
+        Parameters
+        ----------
+        topo_out : str or pathlib.Path object
+            Output file of land surface correction factors in netcdf format.
+        temp_out : str or pathlib.Path object
+            Output file of spatialized air temperatures in netcdf format.
+        """
 
         temp, lons, lats, times = self.spatialTemp(topo_out, types="ts")
 
@@ -2400,31 +2512,34 @@ class redcappTemp(object):
                 writer.writerow(row)
 
 
-def raster2nc(raster_file, nc_file, crs="WGS84", overwrite=False):
-    """convert input raster to netcdf file
+def raster2nc(
+    raster_file: str | Path,
+    nc_file: str | Path,
+    bbox: list[float, float, float, float] | None = None,
+    overwrite: bool = False,
+):
+    """convert input raster to netcdf file.
 
-    Parameters:
-        raster_file: str or pathlib.Path object
-            the path of raster that should be converted to nc file.
-            all formats that gdal readable are supported.More info:
-            https://gdal.org/drivers/raster/index.html
-        dem_out: str or pathlib.Path object
-            output rasterio in netcdf format
-        crs: int, dict, or str.
-            Anything accepted by rasterio.crs.CRS.from_user_input.
-            When there is no coordinate system in original raster,
-            you can set the coordinate system to nc file using this
-            parameter. Default is `WGS84`
+    Parameters
+    ----------
+    raster_file: str or pathlib.Path object
+        the raster file that should be converted to nc file. all formats that
+        gdal readable are supported. More info: https://gdal.org/drivers/raster/index.html
+    dem_out: str or pathlib.Path object
+        output rasterio in netcdf format
+    bbox: list[float, float, float, float] | None, optional
+        bounding box of the raster in the format of [minx, miny, maxx, maxy].
+        Default is None.
+    overwrite: bool, optional
+        Overwrite the existing file. Default is False.
 
-    Returns a raster in netcdf
+    Example
+    -------
+    >>> dir_data = 'C:/users/bincao/Desktop/data'
+    >>> dem_file = 'DEM_testArea.asc'
+    >>> dem_out  = 'C:/users/bincao/Desktop/data/DEM_fine-scale.nc'
 
-    Example:
-        dir_data = 'C:/users/bincao/Desktop/data'
-        dem_file = 'DEM_testArea.asc'
-        dem_out  = 'C:/users/bincao/Desktop/data/DEM_fine-scale.nc'
-
-        raster2nc(dem_file, dem_out)
-
+    >>> raster2nc(dem_file, dem_out)
     """
     if path.exists(nc_file):
         if overwrite:
@@ -2434,13 +2549,15 @@ def raster2nc(raster_file, nc_file, crs="WGS84", overwrite=False):
             return
 
     da = rioxarray.open_rasterio(raster_file)
-    da = da.rio.reproject(crs)
+    da = da.rio.reproject("WGS84")
+    if bbox is not None:
+        da = da.rio.clip_box(*bbox)
 
     name_map = {"x": "lon", "y": "lat"}
     da = da.rename(name_map)
     ds = xr.Dataset({"elevation": da})
     ds["elevation"].rio.set_spatial_dims("lon", "lat", inplace=True)
-    ds["elevation"].rio.write_crs(crs, inplace=True)
+    ds["elevation"].rio.write_crs("WGS84", inplace=True)
 
     ds.to_netcdf(nc_file)
     da.close()
