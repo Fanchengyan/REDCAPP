@@ -1141,7 +1141,7 @@ class DownScaling(object):
         -------
         >>> out_xyz_dem, lats, lons, shape = downscaling.demGrid()
         >>> out_xyz_sur = downscaling.surGrid(lats, lons, None)
-        >>> pl_obs,pl_sur,t_sa = downscaling.interpAll(
+        >>> pl_obs, pl_sur, t_sa = downscaling.interpAll(
         >>>     variable, ind_time, out_xyz_sur, out_xyz_dem
         >>> )
         """
@@ -1195,7 +1195,6 @@ class DownScaling(object):
         >>> out_xyz_sur = downscaling.surGrid(lats, lons, None)
         >>> pl,dt = downscaling.spatial_pl_dt(variable, daterange, types)
         """
-
         # obtain time range
         date_vec = nc.num2date(
             self.pl.variables["time"][:],
@@ -2453,7 +2452,6 @@ class redcappTemp(object):
         temp_out : str or pathlib.Path object
             Output file of spatialized air temperatures in netcdf format.
         """
-
         temp, lons, lats, times = self.spatialTemp(topo_out, types="ts")
 
         # create nc file

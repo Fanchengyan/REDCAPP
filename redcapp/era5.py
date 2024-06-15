@@ -34,6 +34,7 @@ class ERA5_Manager(object):
 
         self.data_dir = self.home_dir / "data"
         self.merge_dir = self.data_dir / "merge"
+
         self._geop = self.data_dir / "surface_geopotential.nc"
 
         ensure_dir(self.data_dir)
@@ -52,7 +53,6 @@ class ERA5_Manager(object):
         pd.period_range method. Of the four parameters: start, end,
         periods, and freq, exactly three must be specified to generate
         date
-
 
         Parameters
         ----------
@@ -164,8 +164,8 @@ class ERA5_Manager(object):
     def get_pressure_levels(self, min, max):
         """return all pressure levels than in the interval [min, max]
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         min/max : int
             min/max pressure levels
         """
@@ -267,15 +267,13 @@ class ERA5_Manager(object):
 
         # 2m_temperature
         num_item = 1
-        ymd_list = self._split_requests(year, month, day, time, num_item)
-        for year, month, day in ymd_list:
-            request_info = {
-                "product_type": "reanalysis",
-                "format": "netcdf",
-                "variable": "2m_temperature",
-                "time": time,
-                "area": area,
-            }
+        request_info = {
+            "product_type": "reanalysis",
+            "format": "netcdf",
+            "variable": "2m_temperature",
+            "time": time,
+            "area": area,
+        }
         self._retrieve_multiple_date(
             name, year, month, day, time, num_item, request_info
         )
@@ -303,8 +301,8 @@ class ERA5_Manager(object):
     def format_nc(self, file_in, file_out=None):
         """format nc file to make file could be read by redcapp.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         file_in: str or pathlib.Path object
             The path to the nc file that needs to be formatted.
         file_out: str or pathlib.Path object
@@ -312,8 +310,8 @@ class ERA5_Manager(object):
             if file_out is None, will save is to result merge_dir
             with the same name with file_in
 
-        Returns:
-        --------
+        Returns
+        -------
         path of output file
         """
         if file_out is None:
@@ -369,7 +367,7 @@ class ERA5_Manager(object):
             print(f"Files have already been merged into {merged_file}, Skipping...")
             return None
 
-        files = list(self.data_dir.glob(pattern))
+        files = sorted(self.data_dir.glob(pattern))
         mfds = xr.open_mfdataset(files)
 
         if day_mean:
@@ -397,7 +395,7 @@ class ERA5_Manager(object):
         mfds.close()
         print(f"Merged files to file: {merged_file}")
 
-    def get_pl(self, name=None):
+    def get_pl(self):
         """return the path of merged pressure level file"""
         path = list(self.merge_dir.glob("reanalysis-era5-pressure-levels*.nc"))[0]
         return path
