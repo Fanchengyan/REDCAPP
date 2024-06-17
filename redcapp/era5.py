@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from tkinter.messagebox import NO
 
 import cdsapi
 import pandas as pd
@@ -368,6 +367,7 @@ class ERA5_Manager(object):
             return None
 
         files = sorted(self.data_dir.glob(pattern))
+        print(f"Start merging ({len(files)}) {pattern} files...")
         mfds = xr.open_mfdataset(files)
 
         if day_mean:
