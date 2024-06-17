@@ -3,7 +3,7 @@ from time import time
 
 import numpy as np
 
-from redcapp import ERA5_Manager, raster2nc, redcappTemp
+from redcapp import ERA5_Manager, install_CDS_API_key, raster2nc, redcappTemp
 
 # set the directory containing all raw data and output data
 home_dir = Path("/Volumes/Data/GeoData/YNG/Temperature")
@@ -12,6 +12,8 @@ dem_file = home_dir / "your_dem.tif"
 
 # output dem file in netcdf format
 dem_nc = home_dir / "DEM_WGS84.nc"
+
+# output files
 spatTopo_out = home_dir / "spatTopo.nc"
 spatTemp_out = home_dir / "spatialT.nc"
 
@@ -20,10 +22,10 @@ spatTemp_out = home_dir / "spatialT.nc"
 ### get your key from https://cds.climate.copernicus.eu/api-how-to
 ### and replace 'your key' with your key and uncomment the following lines:
 
-# dm.install_CDS_API_key(
-#     url="https://cds.climate.copernicus.eu/api/v2",
-#     key="your key",
-# )
+install_CDS_API_key(
+    url="https://cds.climate.copernicus.eu/api/v2",
+    key="your key",
+)
 
 ############################################################################
 
